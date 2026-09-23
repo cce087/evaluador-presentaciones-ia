@@ -1,21 +1,28 @@
-import { Presentation, Sun, Moon, Info } from 'lucide-react';
+import { useState } from 'react';
+import {
+  Sun,
+  Moon,
+  Sparkles,
+  ChevronDown,
+  Info,
+} from 'lucide-react';
 import { ApiKeyInput } from './ApiKeyInput';
 import { ModelSelector } from './ModelSelector';
 import { ReferenceMaterials } from './ReferenceMaterials';
-import type { AppTheme, EvaluationContext } from '../types';
+import type { Theme, GeminiModel, EvaluationContext } from '../types';
 
 interface SidebarProps {
-  theme: AppTheme;
+  theme: Theme;
   onToggleTheme: () => void;
   apiKey: string;
   isEditingKey: boolean;
   onSaveKey: (key: string) => void;
   onRemoveKey: () => void;
   onCancelKey: () => void;
-  model: string;
-  onModelChange: (model: string) => void;
+  model: GeminiModel;
+  onModelChange: (model: GeminiModel) => void;
   context: EvaluationContext;
-  onContextChange: (ctx: EvaluationContext) => void;
+  onContextChange: (context: EvaluationContext) => void;
 }
 
 export function Sidebar({
@@ -31,91 +38,86 @@ export function Sidebar({
   context,
   onContextChange,
 }: SidebarProps) {
+  const [isHowItWorksOpen, setIsHowItWorksOpen] = useState(true);
+
   return (
-    <aside className="w-full md:w-80 shrink-0 flex flex-col bg-white dark:bg-gray-950 border-r border-gray-200 dark:border-gray-800 p-5 gap-5 md:sticky md:top-0 md:h-screen md:max-h-screen overflow-y-auto transition-colors">
-      {/* Logo */}
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg shadow-primary-500/20">
-          <Presentation className="w-5 h-5 text-white" />
+    <aside className="w-full md:w-80 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col h-auto md:h-screen md:sticky md:top-0 transition-colors">
+      
+      {/* Cabecera / Logo */}
+      <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-primary-600 flex items-center justify-center text-white shadow-sm">
+            <Sparkles className="w-5 h-5" />
+          </div>
+          <div>
+            <h1 className="font-bold text-gray-900 dark:text-gray-100 text-base leading-tight">
+              SlideJudge
+            </h1>
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+              Evaluador con IA
+            </p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-base font-bold text-gray-900 dark:text-gray-100 leading-tight">
-            SlideJudge
-          </h1>
-          <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">Evaluador con IA</p>
-        </div>
-      </div>
 
-      {/* Theme toggle */}
-      <div className="flex items-center justify-between rounded-xl bg-gray-100 dark:bg-gray-800/60 p-1.5">
+        {/* Botón cambiar tema */}
         <button
-          onClick={() => theme !== 'light' && onToggleTheme()}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex-1 ${
-            theme === 'light' ? 'bg-white shadow text-gray-900' : 'text-gray-500 dark:text-gray-400'
-          }`}
+          onClick={onToggleTheme}
+          className="p-2 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors"
+          title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
         >
-          <Sun className="w-3.5 h-3.5" />
-          Claro
-        </button>
-        <button
-          onClick={() => theme !== 'dark' && onToggleTheme()}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex-1 ${
-            theme === 'dark' ? 'bg-gray-900 shadow text-gray-100' : 'text-gray-500 dark:text-gray-400'
-          }`}
-        >
-          <Moon className="w-3.5 h-3.5" />
-          Oscuro
+          {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </button>
       </div>
 
-      {/* API Key */}
-      <ApiKeyInput
-        apiKey={apiKey}
-        isEditing={isEditingKey}
-        onSave={onSaveKey}
-        onRemove={onRemoveKey}
-        onCancel={onCancelKey}
-      />
+      {/* Contenido con SCROLL (overflow-y-auto) para que todo quepa en pantalla */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
+        
+        {/* Clave API */}
+        <ApiKeyInput
+          apiKey={apiKey}
+          isEditing={isEditingKey}
+          onSave={onSaveKey}
+          onRemove={onRemoveKey}
+          onCancel={onCancelKey}
+        />
 
-      {/* Model selector */}
-      <ModelSelector model={model} onChange={onModelChange} />
+        {/* Modelo Gemini */}
+        <ModelSelector model={model} onChange={onModelChange} />
 
-      {/* Reference materials */}
-      <ReferenceMaterials context={context} onContextChange={onContextChange} />
+        {/* Materiales de Referencia (Rúbrica + Ejemplos) */}
+        <ReferenceMaterials context={context} onChange={onContextChange} />
 
-      {/* Info card */}
-      <div className="rounded-xl bg-blue-50/80 dark:bg-primary-950/40 border border-blue-200 dark:border-primary-800/50 p-4">
-        <div className="flex items-center gap-2 mb-2">
-          <Info className="w-4 h-4 text-primary-600 dark:text-primary-400" />
-          <h3 className="text-xs font-bold text-primary-900 dark:text-primary-300">
-            ¿Cómo funciona?
-          </h3>
+        {/* ¿Cómo funciona? */}
+        <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-950/40 overflow-hidden">
+          <button
+            onClick={() => setIsHowItWorksOpen(!isHowItWorksOpen)}
+            className="w-full flex items-center justify-between p-3 text-left font-bold text-gray-800 dark:text-gray-200 hover:bg-gray-100/50 dark:hover:bg-gray-800/40 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Info className="w-4 h-4 text-primary-500" />
+              <span>¿Cómo funciona?</span>
+            </div>
+            <ChevronDown
+              className={`w-3.5 h-3.5 text-gray-400 transition-transform ${
+                isHowItWorksOpen ? 'rotate-180' : ''
+              }`}
+            />
+          </button>
+
+          {isHowItWorksOpen && (
+            <ol className="p-3 pt-0 space-y-1.5 text-gray-600 dark:text-gray-400 font-medium leading-relaxed border-t border-gray-200/50 dark:border-gray-800/50">
+              <li>1. Introduce tu API key de Gemini</li>
+              <li>2. Elige el modelo y materiales (opcional)</li>
+              <li>3. Sube tu presentación (PDF o PPTX)</li>
+              <li>4. Recibe puntuaciones y recomendaciones</li>
+            </ol>
+          )}
         </div>
-        <ol className="space-y-1.5 text-xs text-slate-800 dark:text-primary-200/90 font-medium">
-          <li className="flex gap-2">
-            <span className="font-bold text-primary-700 dark:text-primary-400">1.</span>
-            <span>Introduce tu API key de Gemini</span>
-          </li>
-          <li className="flex gap-2">
-            <span className="font-bold text-primary-700 dark:text-primary-400">2.</span>
-            <span>Elige el modelo y materiales de referencia (opcional)</span>
-          </li>
-          <li className="flex gap-2">
-            <span className="font-bold text-primary-700 dark:text-primary-400">3.</span>
-            <span>Sube tu presentación (PDF o PPTX)</span>
-          </li>
-          <li className="flex gap-2">
-            <span className="font-bold text-primary-700 dark:text-primary-400">4.</span>
-            <span>Recibe puntuaciones y recomendaciones</span>
-          </li>
-        </ol>
       </div>
 
       {/* Footer */}
-      <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-800">
-        <p className="text-xs text-gray-600 dark:text-gray-400 font-medium text-center">
-          Procesamiento 100% local · Sin servidores
-        </p>
+      <div className="p-3 border-t border-gray-200 dark:border-gray-800 text-[11px] font-semibold text-gray-400 text-center shrink-0">
+        Procesamiento 100% local · Sin servidores
       </div>
     </aside>
   );
