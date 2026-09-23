@@ -63,7 +63,7 @@ async function callWithRetry<T>(
         `Saturación en servidores de Gemini (503/429). Reintentando en ${delay / 1000}s... (Quedan ${retries} intentos)`
       );
       await new Promise((resolve) => setTimeout(resolve, delay));
-      return callWithRetry(fn, retries - 1, delay * 2); // Duplica el tiempo de espera en cada reintento (2s, 4s, 8s, 16s)
+      return callWithRetry(fn, retries - 1, delay * 2);
     }
     throw error;
   }
@@ -113,6 +113,19 @@ export async function evaluatePresentation(
   model: string,
   context: EvaluationContext
 ): Promise<EvaluationResult> {
+  // Modelos Gemini 3.x válidos para este contexto
+  const validModels = [
+    'gemini-3.8-flash',
+    'gemini-3.7-flash',
+    'gemini-3.6-flash',
+    'gemini-3.5-flash',
+    'gemini-3.5-flash-lite',
+    'gemini-3.1-flash-lite',
+  ];
+
+  // Si el modelo viene vacío o es de versiones 1.x/2.x antiguas, se asigna automáticamente gemini-3.8-flash
+  const targetModel = validModels.includes(model) ? model : 'gemini-3.8-flash';
+
   const genAI = new GoogleGenAI({ apiKey });
   const parts: Array<{ text: string } | { inlineData: { data: string; mimeType: string } }> = [
     { text: buildPrompt(context) },
@@ -141,7 +154,7 @@ export async function evaluatePresentation(
   // Petición a la API envuelta en la estrategia de reintentos
   const response = await callWithRetry(async () => {
     return await genAI.models.generateContent({
-      model,
+      model: targetModel,
       contents: [{ role: 'user', parts }],
       config: {
         responseMimeType: 'application/json',
@@ -154,6 +167,6 @@ export async function evaluatePresentation(
   if (!text) throw new Error('La IA no devolvió respuesta');
 
   const parsed = JSON.parse(text) as EvaluationResult;
-  parsed.model = model;
+  parsed.model = targetModel;
   return parsed;
 }
