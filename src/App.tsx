@@ -37,7 +37,7 @@ export default function App() {
   
   const [localConfig, setLocalConfig] = useState<LocalConfig>({
     baseUrl: 'http://localhost:11434',
-    modelName: 'qwen2.5vl:3b',
+    modelName: 'qwen/qwen3.8-27b',
   });
 
   const [context, setContext] = useState<EvaluationContext>(EMPTY_CONTEXT);
@@ -99,7 +99,7 @@ export default function App() {
           evalResult = await evaluateWithGroq(
             groqApiKey,
             slides,
-            'Qwen 3.8 Vision',
+            'qwen/qwen3.8-27b',
             context
           );
         } else {
@@ -135,7 +135,7 @@ export default function App() {
     provider === 'gemini'
       ? GEMINI_MODELS.find((m) => m.id === model)?.label ?? model
       : provider === 'groq'
-      ? 'Groq (Qwen 3.8 Vision)'
+      ? 'Groq (qwen/qwen3.8-27b)'
       : `Local: ${localConfig.modelName}`;
 
   return (
