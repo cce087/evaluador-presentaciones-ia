@@ -7,6 +7,7 @@ import {
   Cpu,
   ClipboardList,
   Library,
+  RefreshCw,
 } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { DropZone } from './components/DropZone';
@@ -17,12 +18,15 @@ import { useApiKey } from './hooks/useApiKey';
 import { useModel } from './hooks/useModel';
 import { processFile } from './lib/fileProcessor';
 import { evaluatePresentation } from './lib/gemini';
-import { GEMINI_MODELS, DEFAULT_MODEL } from './types';
+import { GEMINI_MODELS } from './types';
 import type { EvaluationContext, EvaluationResult } from './types';
 
 type AppState = 'idle' | 'processing' | 'analyzing' | 'results' | 'error';
 
 const EMPTY_CONTEXT: EvaluationContext = { rubric: null, examples: [] };
+
+// Lista de modelos de respaldo ordenados por prioridad en caso de fallo o sobrecarga de API
+const FALLBACK_MODEL_CHAIN = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
 
 export default function App() {
   const { theme, toggleTheme } = useTheme();
@@ -51,16 +55,35 @@ export default function App() {
 
         if (slides.length === 0) {
           throw new Error(
-            'No se pudieron extraer imágenes del archivo. Si es un PPTX, asegúrate de que contiene imágenes en las diapositivas.'
+            'No se pudieron extraer imágenes del archivo. Si es un PPTX, asegúrate de que contiene imágenes o diapositivas válidas.'
           );
         }
 
         setState('analyzing');
-        const evalResult = await evaluatePresentation(apiKey, slides, model, context);
+
+        // Estrategia de Fallback Automático: probar el modelo seleccionado y alternativos si falla el servidor
+        let evalResult: EvaluationResult | null = null;
+        const modelsToTry = [model, ...FALLBACK_MODEL_CHAIN.filter((m) => m !== model)];
+        let lastError: Error | null = null;
+
+        for (const targetModel of modelsToTry) {
+          try {
+            evalResult = await evaluatePresentation(apiKey, slides, targetModel, context);
+            if (evalResult) break; // Éxito en la evaluación
+          } catch (err) {
+            lastError = err instanceof Error ? err : new Error('Error al conectar con la API de Gemini');
+            console.warn(`El modelo ${targetModel} no respondió adecuadamente. Intentando modelo de respaldo...`, err);
+          }
+        }
+
+        if (!evalResult) {
+          throw lastError || new Error('No se pudo completar el análisis con ninguno de los modelos disponibles.');
+        }
+
         setResult(evalResult);
         setState('results');
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Ocurrió un error inesperado';
+        const message = err instanceof Error ? err.message : 'Ocurrió un error inesperado al procesar el archivo.';
         setError(message);
         setState('error');
       }
@@ -99,86 +122,95 @@ export default function App() {
         <div className="max-w-5xl mx-auto">
           {/* Header */}
           <div className="mb-8 hidden md:block">
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-1">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">
               Evaluador de Presentaciones
             </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Sube tu presentación y recibe feedback detallado con IA
+            <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">
+              Sube tu presentación y recibe feedback detallado con IA en tiempo real
             </p>
           </div>
 
-          {/* Content */}
+          {/* Estado de Carga / Error / Inicio */}
           {(state === 'idle' || state === 'error') && (
             <div className="space-y-6 animate-fade-in">
               <DropZone onFileSelected={handleFile} disabled={!apiKey} />
 
+              {/* Banner de Aviso: Se requiere API key */}
               {!apiKey && (
-                <div className="flex items-start gap-3 p-4 rounded-2xl bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-800/50">
-                  <ShieldCheck className="w-5 h-5 text-warning-500 shrink-0 mt-0.5" />
-                  <div className="text-sm text-warning-700 dark:text-warning-400">
-                    <p className="font-semibold mb-1">Se requiere API key</p>
-                    <p>
-                      Introduce tu API key de Gemini en la barra lateral para empezar a evaluar
-                      presentaciones. Tu clave se guarda solo en tu navegador.
+                <div className="flex items-start gap-3.5 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/60 shadow-sm">
+                  <ShieldCheck className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                  <div className="text-sm text-amber-950 dark:text-amber-200">
+                    <p className="font-bold mb-1 text-amber-900 dark:text-amber-300">
+                      Se requiere API Key de Gemini
+                    </p>
+                    <p className="font-medium text-amber-800 dark:text-amber-200/90 leading-relaxed">
+                      Introduce tu API key de Gemini en la barra lateral para empezar a evaluar presentaciones. Tu clave no se guarda en ningún servidor externo, permanece 100% segura en tu navegador.
                     </p>
                   </div>
                 </div>
               )}
 
+              {/* Banner de Error */}
               {state === 'error' && error && (
-                <div className="flex items-start gap-3 p-4 rounded-2xl bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800/50">
-                  <AlertCircle className="w-5 h-5 text-error-500 shrink-0 mt-0.5" />
-                  <div className="text-sm text-error-700 dark:text-error-400">
-                    <p className="font-semibold mb-1">Error</p>
-                    <p>{error}</p>
+                <div className="flex items-start gap-3.5 p-4 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-300 dark:border-red-800/60 shadow-sm">
+                  <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+                  <div className="text-sm text-red-950 dark:text-red-200">
+                    <p className="font-bold mb-1 text-red-900 dark:text-red-300">
+                      Error durante el procesamiento
+                    </p>
+                    <p className="font-medium text-red-800 dark:text-red-200/90 leading-relaxed">
+                      {error}
+                    </p>
                   </div>
                 </div>
               )}
 
-              {/* Status badges */}
+              {/* Badges de Configuración Activa */}
               {apiKey && (
-                <div className="flex flex-wrap items-center gap-2 p-3 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
-                  <span className="text-xs font-medium text-gray-400 mr-1">Configuración:</span>
-                  <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary-50 dark:bg-primary-950/40 text-xs text-primary-600 dark:text-primary-400">
-                    <Cpu className="w-3 h-3" />
+                <div className="flex flex-wrap items-center gap-2.5 p-3.5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm">
+                  <span className="text-xs font-bold text-gray-700 dark:text-gray-300 mr-1">
+                    Configuración activa:
+                  </span>
+                  <span className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-primary-50 dark:bg-primary-950/50 text-xs font-bold text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-800">
+                    <Cpu className="w-3.5 h-3.5" />
                     {modelLabel}
                   </span>
                   {hasRubric && (
-                    <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-accent-50 dark:bg-accent-900/20 text-xs text-accent-600 dark:text-accent-400">
-                      <ClipboardList className="w-3 h-3" />
-                      Rúbrica cargada
+                    <span className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-xs font-bold text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                      <ClipboardList className="w-3.5 h-3.5" />
+                      Rúbrica activa
                     </span>
                   )}
                   {hasExamples && (
-                    <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-accent-50 dark:bg-accent-900/20 text-xs text-accent-600 dark:text-accent-400">
-                      <Library className="w-3 h-3" />
+                    <span className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-xs font-bold text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                      <Library className="w-3.5 h-3.5" />
                       {context.examples.length} {context.examples.length === 1 ? 'ejemplo' : 'ejemplos'}
                     </span>
                   )}
                   {!hasRubric && !hasExamples && (
-                    <span className="text-xs text-gray-400">
-                      Sin rúbrica ni ejemplos (evaluación por criterios generales)
+                    <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                      Evaluación basada en criterios generales
                     </span>
                   )}
                 </div>
               )}
 
-              {/* Feature highlights */}
+              {/* Tarjetas Informativas */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
                 <FeatureCard
                   icon={Presentation}
-                  title="Análisis visual"
-                  description="Cada diapositiva se convierte en imagen y se evalúa individualmente"
+                  title="Análisis visual diapositiva por diapositiva"
+                  description="Cada diapositiva se analiza de manera individual examinando su composición y legibilidad."
                 />
                 <FeatureCard
                   icon={Sparkles}
-                  title="4 criterios clave"
-                  description="Estructura, diseño, claridad y dominio del tema"
+                  title="Evaluación multi-criterio"
+                  description="Estructura, diseño visual, claridad conceptual y dominio del tema ponderados objetivamente."
                 />
                 <FeatureCard
                   icon={ShieldCheck}
-                  title="Privado y local"
-                  description="Tu API key y archivos nunca salen de tu navegador"
+                  title="Procesamiento 100% privado"
+                  description="Tu API key y tus archivos se procesan exclusivamente en tu navegador sin intermediarios."
                 />
               </div>
             </div>
@@ -207,12 +239,12 @@ function FeatureCard({
   description: string;
 }) {
   return (
-    <div className="rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-5 hover:shadow-lg transition-shadow">
-      <div className="w-10 h-10 rounded-xl bg-primary-50 dark:bg-primary-950/40 flex items-center justify-center text-primary-500 mb-3">
+    <div className="rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-5 hover:shadow-md transition-all">
+      <div className="w-10 h-10 rounded-xl bg-primary-50 dark:bg-primary-950/50 flex items-center justify-center text-primary-600 dark:text-primary-400 mb-3 border border-primary-100 dark:border-primary-900">
         <Icon className="w-5 h-5" />
       </div>
-      <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-1">{title}</h4>
-      <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">{description}</p>
+      <h4 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-1">{title}</h4>
+      <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 leading-relaxed">{description}</p>
     </div>
   );
 }
