@@ -15,28 +15,28 @@ export function ResultsPanel({ result, slides, fileName, onReset }: ResultsPanel
 
   return (
     <div className="space-y-8 animate-fade-in">
-      {/* Barra superior de acciones */}
-      <div className="flex items-center justify-between gap-4 print:hidden">
-        <div>
-          <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">{fileName}</h3>
+      {/* Barra superior de acciones responsiva */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 print:hidden">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 truncate">{fileName}</h3>
           <p className="text-xs text-gray-500 dark:text-gray-400">
             Evaluado con {result.model}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 w-full sm:w-auto shrink-0">
           <button
             onClick={handleDownloadPDF}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold shadow-sm transition-all"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold shadow-sm transition-all shrink-0"
           >
             <Download className="w-4 h-4"/>
-            Descargar PDF
+            <span>Descargar PDF</span>
           </button>
           <button
             onClick={onReset}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800 text-xs font-bold text-gray-700 dark:text-gray-300 transition-all"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800 text-xs font-bold text-gray-700 dark:text-gray-300 transition-all shrink-0"
           >
             <RefreshCw className="w-4 h-4"/>
-            Evaluar otra
+            <span>Evaluar otra</span>
           </button>
         </div>
       </div>
