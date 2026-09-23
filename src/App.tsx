@@ -24,8 +24,8 @@ type AppState = 'idle' | 'processing' | 'analyzing' | 'results' | 'error';
 
 const EMPTY_CONTEXT: EvaluationContext = { rubric: null, examples: [] };
 
-// Modelos de respaldo verificados que existen en la API oficial de Gemini
-const FALLBACK_MODEL_CHAIN = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+// Cadena de respaldo exclusivamente con modelos compatibles (sin versiones 1.x)
+const FALLBACK_MODEL_CHAIN = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-3.5-flash-lite'];
 
 export default function App() {
   const { theme, toggleTheme } = useTheme();
@@ -60,7 +60,7 @@ export default function App() {
 
         setState('analyzing');
 
-        // Estrategia de Fallback: probar el modelo seleccionado primero y luego los modelos estables de respaldo
+        // Bucle de intento: prueba el modelo seleccionado y si falla, usa los de respaldo (solo 2.x / 3.x)
         let evalResult: EvaluationResult | null = null;
         const modelsToTry = Array.from(new Set([model, ...FALLBACK_MODEL_CHAIN]));
         let lastError: Error | null = null;
@@ -68,15 +68,15 @@ export default function App() {
         for (const targetModel of modelsToTry) {
           try {
             evalResult = await evaluatePresentation(apiKey, slides, targetModel, context);
-            if (evalResult) break; // Evaluación completada con éxito
+            if (evalResult) break;
           } catch (err) {
             lastError = err instanceof Error ? err : new Error('Error al conectar con la API de Gemini');
-            console.warn(`El modelo "${targetModel}" falló o no está disponible con tu API Key. Probrando modelo de respaldo...`, err);
+            console.warn(`El modelo "${targetModel}" falló. Probando siguiente modelo de respaldo...`, err);
           }
         }
 
         if (!evalResult) {
-          throw lastError || new Error('No se pudo completar el análisis. Verifica que tu API key sea válida y tenga acceso a los modelos.');
+          throw lastError || new Error('No se pudo completar el análisis con los modelos seleccionados.');
         }
 
         setResult(evalResult);
