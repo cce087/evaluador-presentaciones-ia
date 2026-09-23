@@ -69,3 +69,11 @@ export interface EvaluationContext {
   rubric: RubricContent | null;
   examples: ReferenceExample[];
 }
+
+// Configuración adicional para soporte de IA Local
+export type ProviderType = 'gemini' | 'local';
+
+export interface LocalConfig {
+  baseUrl: string;
+  modelName: string;
+}

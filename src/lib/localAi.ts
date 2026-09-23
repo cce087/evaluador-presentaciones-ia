@@ -1,21 +1,47 @@
 import type { EvaluationResult, ProcessedSlide, EvaluationContext } from '../types';
 
 export async function evaluateWithLocalAi(
-  baseUrl: string, // Por ejemplo: "http://localhost:11434/v1" (Ollama) o "http://localhost:1234/v1" (LM Studio)
-  modelName: string, // Por ejemplo: "qwen2-vl" o "llama3.2-vision"
+  baseUrl: string,
+  modelName: string,
   slides: ProcessedSlide[],
   context: EvaluationContext
 ): Promise<EvaluationResult> {
-  const prompt = `Analiza estas diapositivas y devuelve UNICAMENTE un JSON válido con esta estructura exacta:
-  {
-    "overallScore": number (0-10),
-    "maxScore": 10,
-    "summary": "string",
-    "criteria": [{"name": "string", "score": number, "maxScore": number, "feedback": "string"}],
-    "slides": [{"slideNumber": number, "title": "string", "score": number, "maxScore": number, "strengths": ["string"], "improvements": ["string"]}]
-  }`;
+  const cleanUrl = baseUrl.replace(/\/+$/, '');
+  const endpoint = cleanUrl.endsWith('/v1') ? `${cleanUrl}/chat/completions` : `${cleanUrl}/v1/chat/completions`;
 
-  // Formato multimodal estándar de OpenAI / Ollama / LM Studio
+  const rubricText = context.rubric?.text
+    ? `\nCRITERIOS / RÚBRICA ESPECÍFICA A SEGUIR:\n${context.rubric.text}\n`
+    : '';
+
+  const prompt = `Eres un experto evaluador de presentaciones académicas y profesionales. 
+Analiza detalladamente estas imágenes de las diapositivas de la presentación.${rubricText}
+
+Debes responder ÚNICAMENTE con un objeto JSON válido (sin texto antes o después, ni comillas markdown como \`\`\`json) siguiendo esta estructura:
+
+{
+  "overallScore": 8.5,
+  "maxScore": 10,
+  "summary": "Resumen ejecutivo del análisis general.",
+  "criteria": [
+    {
+      "name": "Diseño Visual y Legibilidad",
+      "score": 8,
+      "maxScore": 10,
+      "feedback": "Comentario detallado."
+    }
+  ],
+  "slides": [
+    {
+      "slideNumber": 1,
+      "title": "Título de la diapositiva",
+      "score": 8,
+      "maxScore": 10,
+      "strengths": ["Punto fuerte 1"],
+      "improvements": ["Área de mejora 1"]
+    }
+  ]
+}`;
+
   const contentParts: any[] = [{ type: 'text', text: prompt }];
 
   slides.forEach((slide) => {
@@ -27,22 +53,36 @@ export async function evaluateWithLocalAi(
     });
   });
 
-  const response = await fetch(`${baseUrl}/chat/completions`, {
+  const response = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: modelName,
       messages: [{ role: 'user', content: contentParts }],
-      response_format: { type: 'json_object' },
       temperature: 0.2,
     }),
   });
 
   if (!response.ok) {
-    throw new Error(`Error en servidor local (${response.statusText}). Asegúrate de que Ollama/LM Studio está activo.`);
+    const errText = await response.text();
+    throw new Error(`Error local (${response.status}): ${errText || response.statusText}`);
   }
 
   const data = await response.json();
-  const rawText = data.choices[0].message.content;
-  return JSON.parse(rawText) as EvaluationResult;
+  const rawContent = data.choices?.[0]?.message?.content;
+
+  if (!rawContent) {
+    throw new Error('El servidor local no devolvió contenido.');
+  }
+
+  const cleanJson = rawContent
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+
+  const parsedResult = JSON.parse(cleanJson);
+  parsedResult.model = `Local (${modelName})`;
+
+  return parsedResult as EvaluationResult;
 }
