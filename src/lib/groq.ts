@@ -3,7 +3,7 @@ import type { EvaluationContext, EvaluationResult, ProcessedSlide } from '../typ
 export async function evaluateWithGroq(
   apiKey: string,
   slides: ProcessedSlide[],
-  modelName: string = 'llama-3.2-11b-vision-preview',
+  modelName: string = 'qwen/qwen3.8-27b',
   context: EvaluationContext
 ): Promise<EvaluationResult> {
   const endpoint = 'https://api.groq.com/openai/v1/chat/completions';
