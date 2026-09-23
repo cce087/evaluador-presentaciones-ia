@@ -39,7 +39,7 @@ export default function App() {
   const [state, setState] = useState<AppState>('idle');
   const [fileName, setFileName] = useState('');
   const [rawSlides, setRawSlides] = useState<ProcessedSlide[]>([]);
-  const [result, setResult] = useState<EvaluationResult null |>(null);
+  const [result, setResult] = useState<EvaluationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleFile = useCallback(
@@ -118,7 +118,14 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
       <div className="print:hidden">
-        <Sidebar apiKey="{apiKey}" isEditingKey="{isEditingKey}" onCancelKey="{()" onRemoveKey="{removeApiKey}" onSaveKey="{setApiKey}" onToggleTheme="{toggleTheme}" theme="{theme}"> setIsEditingKey(false)}
+        <Sidebar
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          apiKey={apiKey}
+          isEditingKey={isEditingKey}
+          onSaveKey={setApiKey}
+          onRemoveKey={removeApiKey}
+          onCancelKey={() => setIsEditingKey(false)}
           model={model}
           onModelChange={setModel}
           provider={provider}
@@ -141,7 +148,10 @@ export default function App() {
 
           {(state === 'idle' || state === 'error') && (
             <div className="space-y-6 animate-fade-in print:hidden">
-              <DropZone !apiKey} && 'gemini' disabled="{provider" onFileSelected="{handleFile}"/>
+              <DropZone
+                onFileSelected={handleFile}
+                disabled={provider === 'gemini' && !apiKey}
+              />
 
               {provider === 'gemini' && !apiKey && (
                 <div className="flex items-start gap-3.5 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/60 shadow-sm">
@@ -182,11 +192,21 @@ export default function App() {
           )}
 
           {(state === 'processing' || state === 'analyzing') && (
-            <LoadingState context="{context}" fileName="{fileName}" model="{modelLabel}" stage="{state}"/>
+            <LoadingState
+              stage={state}
+              fileName={fileName}
+              model={modelLabel}
+              context={context}
+            />
           )}
 
           {state === 'results' && result && (
-            <ResultsPanel fileName="{fileName}" onReset="{handleReset}" result="{result}" slides="{rawSlides}"/>
+            <ResultsPanel
+              result={result}
+              slides={rawSlides}
+              fileName={fileName}
+              onReset={handleReset}
+            />
           )}
         </div>
       </main>
