@@ -6,6 +6,7 @@ import {
   Cpu,
   ClipboardList,
   Server,
+  Zap,
 } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { DropZone } from './components/DropZone';
@@ -23,17 +24,20 @@ import type { EvaluationContext, EvaluationResult, ProcessedSlide, ProviderType,
 type AppState = 'idle' | 'processing' | 'analyzing' | 'results' | 'error';
 
 const EMPTY_CONTEXT: EvaluationContext = { rubric: null, examples: [] };
-const FALLBACK_MODEL_CHAIN = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash'];
+const FALLBACK_MODEL_CHAIN = ['gemini-2.0-flash', 'gemini-1.5-flash'];
 
 export default function App() {
   const { theme, toggleTheme } = useTheme();
   const { apiKey, isEditing: isEditingKey, setApiKey, removeApiKey, setIsEditing: setIsEditingKey } = useApiKey();
   const { model, setModel } = useModel();
 
+  // Estado del Proveedor y Configuración de Groq
   const [provider, setProvider] = useState<ProviderType>('gemini');
+  const [groqApiKey, setGroqApiKey] = useState<string>(() => localStorage.getItem('groq_api_key') || '');
+  
   const [localConfig, setLocalConfig] = useState<LocalConfig>({
     baseUrl: 'http://localhost:11434',
-    modelName: 'qwen2-vl',
+    modelName: 'qwen2.5vl:3b',
   });
 
   const [context, setContext] = useState<EvaluationContext>(EMPTY_CONTEXT);
@@ -45,19 +49,18 @@ export default function App() {
 
   const handleFile = useCallback(
     async (file: File) => {
+      // Validaciones previas según el proveedor seleccionado
       if (provider === 'gemini' && !apiKey) {
         setError('Primero introduce tu API key de Gemini en la barra lateral.');
         setState('error');
         return;
       }
-      if (provider === 'groq') {
-  result = await evaluateWithGroq(
-    groqApiKey,
-    slides,
-    'llama-3.2-11b-vision-preview',
-    context
-  );
-}
+
+      if (provider === 'groq' && !groqApiKey) {
+        setError('Primero introduce tu API key de Groq.');
+        setState('error');
+        return;
+      }
 
       setFileName(file.name);
       setError(null);
@@ -91,7 +94,16 @@ export default function App() {
           if (!evalResult) {
             throw lastError || new Error('No se pudo evaluar con Gemini.');
           }
+        } else if (provider === 'groq') {
+          // Evaluación con Groq
+          evalResult = await evaluateWithGroq(
+            groqApiKey,
+            slides,
+            'llama-3.2-11b-vision-preview',
+            context
+          );
         } else {
+          // Evaluación con servidor local
           evalResult = await evaluateWithLocalAi(
             localConfig.baseUrl,
             localConfig.modelName,
@@ -108,7 +120,7 @@ export default function App() {
         setState('error');
       }
     },
-    [apiKey, model, provider, localConfig, context]
+    [apiKey, groqApiKey, model, provider, localConfig, context]
   );
 
   const handleReset = () => {
@@ -122,6 +134,8 @@ export default function App() {
   const modelLabel =
     provider === 'gemini'
       ? GEMINI_MODELS.find((m) => m.id === model)?.label ?? model
+      : provider === 'groq'
+      ? 'Groq (Llama 3.2 Vision)'
       : `Local: ${localConfig.modelName}`;
 
   return (
@@ -159,8 +173,33 @@ export default function App() {
             <div className="space-y-6 animate-fade-in print:hidden">
               <DropZone
                 onFileSelected={handleFile}
-                disabled={provider === 'gemini' && !apiKey}
+                disabled={
+                  (provider === 'gemini' && !apiKey) ||
+                  (provider === 'groq' && !groqApiKey)
+                }
               />
+
+              {/* Selector de Proveedor en la zona principal si la sidebar no tiene el campo */}
+              {provider === 'groq' && !groqApiKey && (
+                <div className="p-4 rounded-2xl bg-orange-50 dark:bg-orange-950/40 border border-orange-300 dark:border-orange-800/60 shadow-sm space-y-3">
+                  <div className="flex items-center gap-2 text-orange-900 dark:text-orange-300 font-bold text-sm">
+                    <Zap className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                    Introduce tu API Key de Groq
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="password"
+                      placeholder="gsk_..."
+                      value={groqApiKey}
+                      onChange={(e) => {
+                        setGroqApiKey(e.target.value);
+                        localStorage.setItem('groq_api_key', e.target.value);
+                      }}
+                      className="flex-1 bg-white dark:bg-gray-900 border border-orange-300 dark:border-orange-700 rounded-lg px-3 py-1.5 text-sm"
+                    />
+                  </div>
+                </div>
+              )}
 
               {provider === 'gemini' && !apiKey && (
                 <div className="flex items-start gap-3.5 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/60 shadow-sm">
@@ -187,7 +226,7 @@ export default function App() {
               <div className="flex flex-wrap items-center gap-2.5 p-3.5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm">
                 <span className="text-xs font-bold text-gray-700 dark:text-gray-300 mr-1">Proveedor activo:</span>
                 <span className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-primary-50 dark:bg-primary-950/50 text-xs font-bold text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-800">
-                  {provider === 'gemini' ? <Cpu className="w-3.5 h-3.5"/> : <Server className="w-3.5 h-3.5"/>}
+                  {provider === 'gemini' ? <Cpu className="w-3.5 h-3.5"/> : provider === 'groq' ? <Zap className="w-3.5 h-3.5 text-orange-500"/> : <Server className="w-3.5 h-3.5"/>}
                   {modelLabel}
                 </span>
                 {context.rubric && (

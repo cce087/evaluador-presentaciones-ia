@@ -70,7 +70,7 @@ export interface EvaluationContext {
 }
 
 // Configuración adicional para soporte de IA Local
-export type ProviderType = 'gemini' | 'local';
+export type ProviderType = 'gemini' | 'local' | 'groq';
 
 export interface LocalConfig {
   baseUrl: string;
