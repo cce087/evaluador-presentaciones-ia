@@ -48,8 +48,7 @@ export const GEMINI_MODELS: GeminiModel[] = [
   { id: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite', description: 'Ligero y de alta velocidad' },
   { id: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash-Lite', description: 'Alta eficiencia' },
   { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', description: 'Razonamiento avanzado' },
-  { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', description: 'Modelo de velocidad optimizada' },
-];
+  ];
 
 export const DEFAULT_MODEL = 'gemini-3.8-flash';
 

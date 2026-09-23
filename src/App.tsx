@@ -22,7 +22,7 @@ import type { EvaluationContext, EvaluationResult, ProcessedSlide, ProviderType,
 type AppState = 'idle' | 'processing' | 'analyzing' | 'results' | 'error';
 
 const EMPTY_CONTEXT: EvaluationContext = { rubric: null, examples: [] };
-const FALLBACK_MODEL_CHAIN = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-2.5-flash'];
+const FALLBACK_MODEL_CHAIN = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash'];
 
 export default function App() {
   const { theme, toggleTheme } = useTheme();
