@@ -99,7 +99,7 @@ export default function App() {
           evalResult = await evaluateWithGroq(
             groqApiKey,
             slides,
-            'llama-3.2-11b-vision-preview',
+            'Qwen 3.8 Vision',
             context
           );
         } else {
@@ -135,7 +135,7 @@ export default function App() {
     provider === 'gemini'
       ? GEMINI_MODELS.find((m) => m.id === model)?.label ?? model
       : provider === 'groq'
-      ? 'Groq (Llama 3.2 Vision)'
+      ? 'Groq (Qwen 3.8 Vision)'
       : `Local: ${localConfig.modelName}`;
 
   return (

@@ -6,6 +6,12 @@ export async function evaluateWithGroq(
   modelName: string = 'qwen/qwen3.8-27b',
   context: EvaluationContext
 ): Promise<EvaluationResult> {
+  // Protección: Si recibe el modelo antiguo descontinuado, lo cambia automáticamente al activo
+  let targetModel = modelName;
+  if (!targetModel || targetModel.includes('llama-3.2')) {
+    targetModel = 'qwen/qwen3.8-27b';
+  }
+
   const endpoint = 'https://api.groq.com/openai/v1/chat/completions';
 
   const rubricText = context.rubric?.text
@@ -82,7 +88,7 @@ Debes responder ÚNICAMENTE con un objeto JSON válido siguiendo esta estructura
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: modelName,
+      model: targetModel,
       messages: [{ role: 'user', content: contentParts }],
       temperature: 0.2,
       response_format: { type: 'json_object' }
@@ -106,7 +112,7 @@ Debes responder ÚNICAMENTE con un objeto JSON válido siguiendo esta estructura
   const cleanJson = rawContent.substring(start, end + 1);
 
   const parsedResult = JSON.parse(cleanJson);
-  parsedResult.model = `Groq (${modelName})`;
+  parsedResult.model = `Groq (${targetModel})`;
 
   return parsedResult as EvaluationResult;
 }
