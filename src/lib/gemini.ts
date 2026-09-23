@@ -39,6 +39,36 @@ const EVALUATION_SCHEMA = {
   required: ['overallScore', 'maxScore', 'summary', 'criteria', 'slides'],
 };
 
+// Función auxiliar para reintentar peticiones en caso de saturación (503/429)
+async function callWithRetry<T>(
+  fn: () => Promise<T>,
+  retries = 4,
+  delay = 2000
+): Promise<T> {
+  try {
+    return await fn();
+  } catch (error: any) {
+    const errorMsg = error?.message || error?.toString() || '';
+    const isTransientError =
+      error?.status === 503 ||
+      error?.code === 503 ||
+      errorMsg.includes('503') ||
+      errorMsg.includes('high demand') ||
+      errorMsg.includes('UNAVAILABLE') ||
+      error?.status === 429 ||
+      error?.code === 429;
+
+    if (retries > 0 && isTransientError) {
+      console.warn(
+        `Saturación en servidores de Gemini (503/429). Reintentando en ${delay / 1000}s... (Quedan ${retries} intentos)`
+      );
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      return callWithRetry(fn, retries - 1, delay * 2); // Duplica el tiempo de espera en cada reintento (2s, 4s, 8s, 16s)
+    }
+    throw error;
+  }
+}
+
 function buildPrompt(ctx: EvaluationContext): string {
   let prompt = `Eres un experto en evaluación de presentaciones académicas y profesionales. Analiza cada diapositiva de la presentación proporcionada como imágenes y evalúa la presentación completa.
 
@@ -108,13 +138,16 @@ export async function evaluatePresentation(
     });
   }
 
-  const response = await genAI.models.generateContent({
-    model,
-    contents: [{ role: 'user', parts }],
-    config: {
-      responseMimeType: 'application/json',
-      responseSchema: EVALUATION_SCHEMA,
-    },
+  // Petición a la API envuelta en la estrategia de reintentos
+  const response = await callWithRetry(async () => {
+    return await genAI.models.generateContent({
+      model,
+      contents: [{ role: 'user', parts }],
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: EVALUATION_SCHEMA,
+      },
+    });
   });
 
   const text = response.text;
