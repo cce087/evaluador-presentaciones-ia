@@ -1,89 +1,156 @@
-import type { EvaluationResult } from '../types';
-import { ScoreCircle } from './ScoreCircle';
-import { CriteriaCard } from './CriteriaCard';
-import { SlideFeedback } from './SlideFeedback';
-import { Award, FileText, Sparkles, RotateCcw } from 'lucide-react';
+import { Download, RefreshCw, CheckCircle, AlertTriangle, FileText } from 'lucide-react';
+import type { EvaluationResult, ProcessedSlide } from '../types';
 
 interface ResultsPanelProps {
   result: EvaluationResult;
+  slides: ProcessedSlide[];
   fileName: string;
   onReset: () => void;
 }
 
-export function ResultsPanel({ result, fileName, onReset }: ResultsPanelProps) {
-  const percentage = (result.overallScore / result.maxScore) * 100;
-
-  const getGrade = (pct: number) => {
-    if (pct >= 90) return { label: 'Excelente', color: 'text-accent-600 dark:text-accent-400' };
-    if (pct >= 75) return { label: 'Muy bueno', color: 'text-primary-600 dark:text-primary-400' };
-    if (pct >= 60) return { label: 'Bueno', color: 'text-primary-600 dark:text-primary-400' };
-    if (pct >= 40) return { label: 'Mejorable', color: 'text-warning-600 dark:text-warning-400' };
-    return { label: 'Deficiente', color: 'text-error-600 dark:text-error-400' };
+export function ResultsPanel({ result, slides, fileName, onReset }: ResultsPanelProps) {
+  const handleDownloadPDF = () => {
+    window.print();
   };
 
-  const grade = getGrade(percentage);
-
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Header with score */}
-      <div className="rounded-3xl bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-950 border border-gray-200 dark:border-gray-800 p-6 md:p-8">
-        <div className="flex flex-col md:flex-row items-center gap-6 md:gap-8">
-          <ScoreCircle score={result.overallScore} maxScore={result.maxScore} size={160} />
-
-          <div className="flex-1 text-center md:text-left">
-            <div className="flex items-center gap-2 justify-center md:justify-start mb-2">
-              <Award className={`w-5 h-5 ${grade.color}`} />
-              <span className={`text-lg font-bold ${grade.color}`}>{grade.label}</span>
-            </div>
-            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-2 truncate">
-              {fileName}
-            </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed max-w-2xl">
-              {result.summary}
-            </p>
-            <div className="flex items-center gap-3 mt-3 justify-center md:justify-start">
-              <span className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-gray-100 dark:bg-gray-800 text-xs text-gray-500 dark:text-gray-400">
-                <Sparkles className="w-3 h-3" />
-                {result.model}
-              </span>
-              <span className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-gray-100 dark:bg-gray-800 text-xs text-gray-500 dark:text-gray-400">
-                <FileText className="w-3 h-3" />
-                {result.slides.length} diapositivas
-              </span>
-            </div>
-          </div>
-
+    <div className="space-y-8 animate-fade-in">
+      {/* Barra de Acciones Superior */}
+      <div className="flex items-center justify-between gap-4 print:hidden">
+        <div>
+          <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">{fileName}</h3>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Evaluado con {result.model}
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleDownloadPDF}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold shadow-sm transition-all"
+          >
+            <Download className="w-4 h-4" />
+            Descargar PDF
+          </button>
           <button
             onClick={onReset}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 text-sm font-medium transition-all"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800 text-xs font-bold text-gray-700 dark:text-gray-300 transition-all"
           >
-            <RotateCcw className="w-4 h-4" />
-            Nueva evaluación
+            <RefreshCw className="w-4 h-4" />
+            Evaluar otra
           </button>
         </div>
       </div>
 
-      {/* Criteria scores */}
-      <div>
-        <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4 px-1">
-          Evaluación por criterios
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {result.criteria.map((c, i) => (
-            <CriteriaCard key={c.name} criteria={c} index={i} />
+      {/* Resumen de Nota Global */}
+      <div className="p-6 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col md:flex-row items-center gap-6">
+        <div className="flex flex-col items-center justify-center p-4 rounded-xl bg-primary-50 dark:bg-primary-950/50 border border-primary-200 dark:border-primary-800 min-w-[140px]">
+          <span className="text-3xl font-black text-primary-600 dark:text-primary-400">
+            {result.overallScore} / {result.maxScore}
+          </span>
+          <span className="text-[11px] font-bold text-primary-800 dark:text-primary-300 uppercase tracking-wider mt-1">
+            Nota Global
+          </span>
+        </div>
+        <div className="flex-1 text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+          <h4 className="font-bold text-gray-900 dark:text-gray-100 mb-1">Resumen Ejecutivo</h4>
+          <p>{result.summary}</p>
+        </div>
+      </div>
+
+      {/* Desglose por Criterios */}
+      <div className="p-6 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm space-y-4">
+        <h4 className="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider">
+          Criterios de Evaluación
+        </h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {result.criteria.map((c, idx) => (
+            <div key={idx} className="p-3.5 rounded-xl bg-gray-50 dark:bg-gray-950 border border-gray-100 dark:border-gray-800">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-bold text-gray-900 dark:text-gray-100">{c.name}</span>
+                <span className="text-xs font-extrabold text-primary-600 dark:text-primary-400">
+                  {c.score}/{c.maxScore}
+                </span>
+              </div>
+              <p className="text-xs text-gray-600 dark:text-gray-400 leading-normal">{c.feedback}</p>
+            </div>
           ))}
         </div>
       </div>
 
-      {/* Slide-by-slide feedback */}
-      <div>
-        <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4 px-1">
-          Feedback por diapositiva
-        </h3>
-        <div className="space-y-3">
-          {result.slides.map((slide, i) => (
-            <SlideFeedback key={slide.slideNumber} slide={slide} index={i} />
-          ))}
+      {/* Análisis Diapositiva por Diapositiva */}
+      <div className="space-y-4">
+        <h4 className="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider">
+          Análisis Diapositiva por Diapositiva
+        </h4>
+        <div className="space-y-6">
+          {result.slides.map((slide) => {
+            // Emparejar cada diapositiva con su imagen base64 extraída
+            const matchingImage = slides.find((s) => s.pageNumber === slide.slideNumber);
+
+            return (
+              <div
+                key={slide.slideNumber}
+                className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col md:flex-row gap-6 print:break-inside-avoid"
+              >
+                {/* Contenedor de Vista Previa */}
+                <div className="w-full md:w-64 shrink-0 rounded-xl overflow-hidden bg-gray-950 border border-gray-800 flex items-center justify-center min-h-[160px] relative">
+                  {matchingImage ? (
+                    <img
+                      src={`data:${matchingImage.mimeType};base64,${matchingImage.base64}`}
+                      alt={`Diapositiva ${slide.slideNumber}`}
+                      className="w-full h-auto max-h-48 object-contain"
+                    />
+                  ) : (
+                    <div className="text-center p-4 text-gray-500">
+                      <FileText className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <span className="text-xs">Sin imagen</span>
+                    </div>
+                  )}
+                  <span className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/70 text-[10px] font-bold text-white">
+                    Slide {slide.slideNumber}
+                  </span>
+                </div>
+
+                {/* Feedback de la Diapositiva */}
+                <div className="flex-1 space-y-3">
+                  <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-2">
+                    <h5 className="text-sm font-bold text-gray-900 dark:text-gray-100">
+                      {slide.title || `Diapositiva ${slide.slideNumber}`}
+                    </h5>
+                    <span className="text-xs font-black text-primary-600 dark:text-primary-400">
+                      Puntuación: {slide.score}/{slide.maxScore}
+                    </span>
+                  </div>
+
+                  {slide.strengths && slide.strengths.length > 0 && (
+                    <div>
+                      <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mb-1">
+                        <CheckCircle className="w-3.5 h-3.5" /> Puntos Fuertes
+                      </span>
+                      <ul className="list-disc list-inside text-xs text-gray-600 dark:text-gray-400 space-y-0.5">
+                        {slide.strengths.map((s, i) => (
+                          <li key={i}>{s}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {slide.improvements && slide.improvements.length > 0 && (
+                    <div>
+                      <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1 mb-1">
+                        <AlertTriangle className="w-3.5 h-3.5" /> Áreas de Mejora
+                      </span>
+                      <ul className="list-disc list-inside text-xs text-gray-600 dark:text-gray-400 space-y-0.5">
+                        {slide.improvements.map((imp, i) => (
+                          <li key={i}>{imp}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
