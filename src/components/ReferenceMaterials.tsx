@@ -6,8 +6,11 @@ import {
   Plus,
   Trash2,
   Presentation,
+  Loader2,
+  CheckCircle2,
 } from 'lucide-react';
-import type { EvaluationContext, ExamplePresentation } from '../types';
+import { processFile } from '../lib/fileProcessor';
+import type { EvaluationContext, ReferenceExample } from '../types';
 
 interface ReferenceMaterialsProps {
   context: EvaluationContext;
@@ -16,33 +19,65 @@ interface ReferenceMaterialsProps {
 
 export function ReferenceMaterials({ context, onChange }: ReferenceMaterialsProps) {
   const [isOpen, setIsOpen] = useState(true);
+  const [isProcessingRubric, setIsProcessingRubric] = useState(false);
+  const [processingExampleId, setProcessingExampleId] = useState<string | null>(null);
 
-  const handleRubricChange = (text: string) => {
+  // Actualizar texto escrito manualmente en la Rúbrica
+  const handleRubricTextChange = (text: string) => {
+    if (!text.trim()) {
+      onChange({ ...context, rubric: null });
+      return;
+    }
     onChange({
       ...context,
-      rubric: text.trim() ? text : null,
+      rubric: {
+        text,
+        source: context.rubric?.source || 'Manual',
+      },
     });
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Subir archivo a la Rúbrica procesando el contenido
+  const handleRubricFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
-      if (content) {
-        handleRubricChange(content);
+    setIsProcessingRubric(true);
+    try {
+      if (file.name.endsWith('.txt') || file.name.endsWith('.md')) {
+        const text = await file.text();
+        onChange({
+          ...context,
+          rubric: { text, source: file.name },
+        });
+      } else {
+        // Extrae imágenes/páginas limpias con fileProcessor en lugar de leer raw text
+        const slides = await processFile(file);
+        
+        onChange({
+          ...context,
+          rubric: {
+            text: `Rúbrica importada desde "${file.name}" (${slides.length} páginas analizadas).`,
+            source: file.name,
+          },
+        });
       }
-    };
-    reader.readAsText(file);
+    } catch (err) {
+      console.error('Error al procesar la rúbrica:', err);
+      alert('No se pudo procesar el archivo de rúbrica.');
+    } finally {
+      setIsProcessingRubric(false);
+      e.target.value = '';
+    }
   };
 
+  // Añadir un nuevo contenedor de Ejemplo
   const handleAddExample = () => {
-    const newExample: ExamplePresentation = {
+    const newExample: ReferenceExample = {
       id: Date.now().toString(),
-      title: `Ejemplo ${context.examples.length + 1}`,
-      notes: '',
+      name: `Ejemplo ${context.examples.length + 1}`,
+      label: 'Criterio o nota de referencia',
+      slides: [],
     };
     onChange({
       ...context,
@@ -57,13 +92,42 @@ export function ReferenceMaterials({ context, onChange }: ReferenceMaterialsProp
     });
   };
 
-  const handleExampleChange = (id: string, field: 'title' | 'notes', value: string) => {
+  const handleExampleChange = (
+    id: string,
+    field: 'name' | 'label',
+    value: string
+  ) => {
     onChange({
       ...context,
       examples: context.examples.map((ex) =>
         ex.id === id ? { ...ex, [field]: value } : ex
       ),
     });
+  };
+
+  // Subir PDF o PPTX a una Presentación de Ejemplo
+  const handleExampleFileUpload = async (id: string, file: File) => {
+    setProcessingExampleId(id);
+    try {
+      const slides = await processFile(file);
+      onChange({
+        ...context,
+        examples: context.examples.map((ex) =>
+          ex.id === id
+            ? {
+                ...ex,
+                name: file.name,
+                slides,
+              }
+            : ex
+        ),
+      });
+    } catch (err) {
+      console.error('Error al procesar archivo de ejemplo:', err);
+      alert('Error al procesar la presentación de ejemplo.');
+    } finally {
+      setProcessingExampleId(null);
+    }
   };
 
   return (
@@ -89,36 +153,46 @@ export function ReferenceMaterials({ context, onChange }: ReferenceMaterialsProp
       </button>
 
       {isOpen && (
-        <div className="p-3.5 pt-1 space-y-3.5 border-t border-gray-100 dark:border-gray-800">
+        <div className="p-3.5 pt-1 space-y-4 border-t border-gray-100 dark:border-gray-800">
           
-          {/* Rúbrica */}
+          {/* Seccion: Rúbrica */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-[11px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                 Rúbrica de Evaluación
               </label>
               <label className="flex items-center gap-1 text-[11px] font-semibold text-primary-600 dark:text-primary-400 hover:underline cursor-pointer">
-                <Upload className="w-3 h-3" />
+                {isProcessingRubric ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Upload className="w-3 h-3" />
+                )}
                 <span>Subir PDF/TXT</span>
                 <input
                   type="file"
                   accept=".txt,.pdf,.md"
-                  onChange={handleFileUpload}
+                  onChange={handleRubricFileUpload}
+                  disabled={isProcessingRubric}
                   className="hidden"
                 />
               </label>
             </div>
 
             <textarea
-              value={context.rubric || ''}
-              onChange={(e) => handleRubricChange(e.target.value)}
-              placeholder="Pega aquí los criterios de evaluación, o sube un archivo PDF/TXT con la rúbrica..."
+              value={context.rubric?.text || ''}
+              onChange={(e) => handleRubricTextChange(e.target.value)}
+              placeholder="Pega aquí los criterios de evaluación o sube un archivo..."
               rows={3}
-              className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 text-xs text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all resize-y max-h-32"
+              className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 text-xs text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all resize-y max-h-36"
             />
+            {context.rubric?.source && (
+              <p className="mt-1 text-[10px] text-gray-500 dark:text-gray-400">
+                Fuente: <span className="font-medium">{context.rubric.source}</span>
+              </p>
+            )}
           </div>
 
-          {/* Presentaciones de Ejemplo */}
+          {/* Sección: Presentaciones de Ejemplo */}
           <div className="border-t border-gray-100 dark:border-gray-800 pt-3">
             <div className="flex items-center justify-between mb-2">
               <label className="text-[11px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
@@ -127,20 +201,20 @@ export function ReferenceMaterials({ context, onChange }: ReferenceMaterialsProp
               </label>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-3">
               {context.examples.map((example) => (
                 <div
                   key={example.id}
-                  className="p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 space-y-2"
+                  className="p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 space-y-2.5"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <input
                       type="text"
-                      value={example.title}
+                      value={example.name}
                       onChange={(e) =>
-                        handleExampleChange(example.id, 'title', e.target.value)
+                        handleExampleChange(example.id, 'name', e.target.value)
                       }
-                      placeholder="Título del ejemplo"
+                      placeholder="Nombre del ejemplo"
                       className="flex-1 bg-transparent text-xs font-bold text-gray-900 dark:text-gray-100 focus:outline-none"
                     />
                     <button
@@ -151,12 +225,47 @@ export function ReferenceMaterials({ context, onChange }: ReferenceMaterialsProp
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
+
+                  {/* Cargar PDF o PPTX del ejemplo */}
+                  <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                    <span className="text-[11px] font-medium text-gray-600 dark:text-gray-300 truncate">
+                      {example.slides && example.slides.length > 0 ? (
+                        <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          {example.slides.length} diapositivas listas
+                        </span>
+                      ) : (
+                        'Adjuntar PDF / PPTX'
+                      )}
+                    </span>
+
+                    <label className="px-2 py-1 rounded-md bg-primary-50 dark:bg-primary-950/50 hover:bg-primary-100 text-primary-700 dark:text-primary-300 text-[10px] font-bold cursor-pointer transition-colors shrink-0">
+                      {processingExampleId === example.id ? (
+                        <span className="flex items-center gap-1">
+                          <Loader2 className="w-3 h-3 animate-spin" /> Cargando...
+                        </span>
+                      ) : (
+                        'Seleccionar'
+                      )}
+                      <input
+                        type="file"
+                        accept=".pdf,.pptx"
+                        disabled={processingExampleId === example.id}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleExampleFileUpload(example.id, file);
+                        }}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+
                   <textarea
-                    value={example.notes}
+                    value={example.label}
                     onChange={(e) =>
-                      handleExampleChange(example.id, 'notes', e.target.value)
+                      handleExampleChange(example.id, 'label', e.target.value)
                     }
-                    placeholder="Notas o criterios del ejemplo..."
+                    placeholder="Notas o etiqueta para la IA sobre este ejemplo..."
                     rows={2}
                     className="w-full p-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-xs text-gray-800 dark:text-gray-200 focus:outline-none"
                   />
