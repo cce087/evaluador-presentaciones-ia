@@ -14,13 +14,13 @@ import {
 } from 'lucide-react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { processFile } from '../lib/fileProcessor';
-import { GEMINI_MODELS } from '../types/types';
+import { GEMINI_MODELS } from '../types';
 import type {
   EvaluationContext,
   LocalConfig,
   ProviderType,
   ReferenceExample,
-} from '../types/types';
+} from '../types';
 
 // Configuración del worker de PDF.js para extracción de texto limpio
 if (typeof window !== 'undefined' && 'GlobalWorkerOptions' in pdfjsLib) {

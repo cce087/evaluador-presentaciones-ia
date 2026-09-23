@@ -1,4 +1,4 @@
-import type { EvaluationResult, ProcessedSlide, EvaluationContext } from '../types/types';
+import type { EvaluationResult, ProcessedSlide, EvaluationContext } from '../types';
 
 export async function evaluateWithLocalAi(
   baseUrl: string,

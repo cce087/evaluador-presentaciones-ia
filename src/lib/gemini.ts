@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from '@google/genai';
-import type { EvaluationContext, EvaluationResult, ProcessedSlide } from '../types/types';
+import type { EvaluationContext, EvaluationResult, ProcessedSlide } from '../types';
 
 const EVALUATION_SCHEMA = {
   type: Type.OBJECT,
