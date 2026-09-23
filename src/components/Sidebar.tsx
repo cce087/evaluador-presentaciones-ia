@@ -365,7 +365,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
 
             <div className="p-3 rounded-xl bg-gray-950/60 border border-gray-800/80 text-xs text-gray-400">
-              Modelo vision activo: <strong className="text-white block mt-0.5">llama-3.2-11b-vision-preview</strong>
+              Modelo vision activo: <strong className="text-white block mt-0.5">qwen/qwen3.8-27b</strong>
             </div>
           </div>
         )}
