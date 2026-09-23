@@ -7,7 +7,6 @@ import {
   Cpu,
   ClipboardList,
   Library,
-  RefreshCw,
 } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { DropZone } from './components/DropZone';
@@ -25,8 +24,8 @@ type AppState = 'idle' | 'processing' | 'analyzing' | 'results' | 'error';
 
 const EMPTY_CONTEXT: EvaluationContext = { rubric: null, examples: [] };
 
-// Lista de modelos de respaldo ordenados por prioridad en caso de fallo o sobrecarga de API
-const FALLBACK_MODEL_CHAIN = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+// Modelos de respaldo verificados que existen en la API oficial de Gemini
+const FALLBACK_MODEL_CHAIN = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
 
 export default function App() {
   const { theme, toggleTheme } = useTheme();
@@ -61,23 +60,23 @@ export default function App() {
 
         setState('analyzing');
 
-        // Estrategia de Fallback Automático: probar el modelo seleccionado y alternativos si falla el servidor
+        // Estrategia de Fallback: probar el modelo seleccionado primero y luego los modelos estables de respaldo
         let evalResult: EvaluationResult | null = null;
-        const modelsToTry = [model, ...FALLBACK_MODEL_CHAIN.filter((m) => m !== model)];
+        const modelsToTry = Array.from(new Set([model, ...FALLBACK_MODEL_CHAIN]));
         let lastError: Error | null = null;
 
         for (const targetModel of modelsToTry) {
           try {
             evalResult = await evaluatePresentation(apiKey, slides, targetModel, context);
-            if (evalResult) break; // Éxito en la evaluación
+            if (evalResult) break; // Evaluación completada con éxito
           } catch (err) {
             lastError = err instanceof Error ? err : new Error('Error al conectar con la API de Gemini');
-            console.warn(`El modelo ${targetModel} no respondió adecuadamente. Intentando modelo de respaldo...`, err);
+            console.warn(`El modelo "${targetModel}" falló o no está disponible con tu API Key. Probrando modelo de respaldo...`, err);
           }
         }
 
         if (!evalResult) {
-          throw lastError || new Error('No se pudo completar el análisis con ninguno de los modelos disponibles.');
+          throw lastError || new Error('No se pudo completar el análisis. Verifica que tu API key sea válida y tenga acceso a los modelos.');
         }
 
         setResult(evalResult);
