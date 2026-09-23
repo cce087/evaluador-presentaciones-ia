@@ -5,6 +5,7 @@ import {
   Key,
   Cpu,
   Server,
+  Zap,
   FileText,
   Upload,
   Trash2,
@@ -63,9 +64,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onContextChange,
 }) => {
   const [tempKey, setTempKey] = useState(apiKey);
+  const [groqKey, setGroqKey] = useState(() => localStorage.getItem('groq_api_key') || '');
+  const [isEditingGroqKey, setIsEditingGroqKey] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const rubricInputRef = useRef<HTMLInputElement>(null);
   const exampleInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSaveGroqKey = (key: string) => {
+    const trimmed = key.trim();
+    setGroqKey(trimmed);
+    localStorage.setItem('groq_api_key', trimmed);
+    setIsEditingGroqKey(false);
+  };
+
+  const handleRemoveGroqKey = () => {
+    setGroqKey('');
+    localStorage.removeItem('groq_api_key');
+    setIsEditingGroqKey(false);
+  };
 
   // Extrae texto legible de archivos TXT o PDF para la rúbrica
   const handleRubricFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -171,34 +187,45 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider block">
             Proveedor de IA
           </label>
-          <div className="grid grid-cols-2 gap-2 p-1 bg-gray-950 rounded-xl border border-gray-800">
+          <div className="grid grid-cols-3 gap-1 p-1 bg-gray-950 rounded-xl border border-gray-800">
             <button
               onClick={() => onProviderChange('gemini')}
-              className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-medium transition-all ${
+              className={`flex items-center justify-center gap-1 py-2 px-1.5 rounded-lg text-xs font-medium transition-all ${
                 provider === 'gemini'
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-gray-400 hover:text-gray-200'
               }`}
             >
               <Cpu className="w-3.5 h-3.5" />
-              Gemini API
+              Gemini
+            </button>
+            <button
+              onClick={() => onProviderChange('groq')}
+              className={`flex items-center justify-center gap-1 py-2 px-1.5 rounded-lg text-xs font-medium transition-all ${
+                provider === 'groq'
+                  ? 'bg-orange-600 text-white shadow-sm'
+                  : 'text-gray-400 hover:text-gray-200'
+              }`}
+            >
+              <Zap className="w-3.5 h-3.5 text-orange-300" />
+              Groq
             </button>
             <button
               onClick={() => onProviderChange('local')}
-              className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-medium transition-all ${
+              className={`flex items-center justify-center gap-1 py-2 px-1.5 rounded-lg text-xs font-medium transition-all ${
                 provider === 'local'
-                  ? 'bg-blue-600 text-white shadow-sm'
+                  ? 'bg-purple-600 text-white shadow-sm'
                   : 'text-gray-400 hover:text-gray-200'
               }`}
             >
               <Server className="w-3.5 h-3.5" />
-              Servidor Local
+              Local
             </button>
           </div>
         </div>
 
         {/* CONFIGURACIÓN SEGÚN PROVEEDOR */}
-        {provider === 'gemini' ? (
+        {provider === 'gemini' && (
           <div className="space-y-4">
             <div className="p-3.5 rounded-xl bg-gray-950/60 border border-gray-800/80 space-y-3">
               <div className="flex items-center justify-between">
@@ -274,7 +301,76 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </select>
             </div>
           </div>
-        ) : (
+        )}
+
+        {provider === 'groq' && (
+          <div className="space-y-4">
+            <div className="p-3.5 rounded-xl bg-gray-950/60 border border-gray-800/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-gray-300 flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 text-orange-400" /> Groq API Key
+                </span>
+                {groqKey && !isEditingGroqKey && (
+                  <span className="text-[10px] bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 px-2 py-0.5 rounded-full">
+                    Configurada
+                  </span>
+                )}
+              </div>
+
+              {!groqKey || isEditingGroqKey ? (
+                <div className="space-y-2">
+                  <input
+                    type="password"
+                    placeholder="gsk_..."
+                    value={groqKey}
+                    onChange={(e) => setGroqKey(e.target.value)}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-orange-500"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleSaveGroqKey(groqKey)}
+                      className="flex-1 bg-orange-600 hover:bg-orange-500 text-white text-xs py-1.5 rounded-lg font-medium transition-colors"
+                    >
+                      Guardar
+                    </button>
+                    {groqKey && (
+                      <button
+                        onClick={() => setIsEditingGroqKey(false)}
+                        className="px-3 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs py-1.5 rounded-lg font-medium transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-xs text-gray-400 font-mono">••••••••••••</span>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => setIsEditingGroqKey(true)}
+                      className="text-xs text-orange-400 hover:text-orange-300 px-2 py-1 rounded"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      onClick={handleRemoveGroqKey}
+                      className="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded"
+                    >
+                      Borrar
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-3 rounded-xl bg-gray-950/60 border border-gray-800/80 text-xs text-gray-400">
+              Modelo vision activo: <strong className="text-white block mt-0.5">llama-3.2-11b-vision-preview</strong>
+            </div>
+          </div>
+        )}
+
+        {provider === 'local' && (
           <div className="space-y-3 p-3.5 rounded-xl bg-gray-950/60 border border-gray-800/80">
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-gray-300">URL Servidor Local (Ollama)</label>
