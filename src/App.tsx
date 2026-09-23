@@ -1,3 +1,4 @@
+import { evaluateWithGroq } from './lib/groq';
 import { useCallback, useState } from 'react';
 import {
   AlertCircle,
@@ -49,6 +50,14 @@ export default function App() {
         setState('error');
         return;
       }
+      if (provider === 'groq') {
+  result = await evaluateWithGroq(
+    groqApiKey,
+    slides,
+    'llama-3.2-11b-vision-preview',
+    context
+  );
+}
 
       setFileName(file.name);
       setError(null);
