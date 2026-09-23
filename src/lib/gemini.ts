@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from '@google/genai';
-import type { EvaluationContext, EvaluationResult, ProcessedSlide } from '../types';
+import type { EvaluationContext, EvaluationResult, ProcessedSlide } from '../types/types';
 
 const EVALUATION_SCHEMA = {
   type: Type.OBJECT,
@@ -63,27 +63,15 @@ Proporciona también:
 Responde en español.`;
 
   if (ctx.rubric?.text) {
-    prompt += `
-
-## RÚBRICA DE EVALUACIÓN
-
-Debes evaluar la presentación comparándola explícitamente con la siguiente rúbrica. Ajusta tus puntuaciones y feedback a los criterios y estándares definidos en ella:
-
-${ctx.rubric.text}`;
+    prompt += `\n\n## RÚBRICA DE EVALUACIÓN (Fuente: ${ctx.rubric.source || 'Manual'})\n\nDebes evaluar la presentación comparándola explícitamente con la siguiente rúbrica. Ajusta tus puntuaciones y feedback a los criterios y estándares definidos en ella:\n\n${ctx.rubric.text}`;
   }
 
-  if (ctx.examples.length > 0) {
-    prompt += `
-
-## PRESENTACIONES DE REFERENCIA
-
-A continuación se proporcionan ${ctx.examples.length} ${ctx.examples.length === 1 ? 'presentación de referencia' : 'presentaciones de referencia'} (de años anteriores o ejemplos). Úsalas como estándar de comparación al evaluar la presentación del usuario. Cada conjunto de imágenes etiquetado como "REFERENCIA" es un ejemplo contra el que debes comparar.`;
+  if (ctx.examples && ctx.examples.length > 0) {
+    prompt += `\n\n## PRESENTACIONES DE REFERENCIA\n\nA continuación se proporcionan ${ctx.examples.length} ${ctx.examples.length === 1 ? 'presentación de referencia' : 'presentaciones de referencia'} (de años anteriores o ejemplos). Úsalas como estándar de comparación al evaluar la presentación del usuario. Cada conjunto de imágenes etiquetado como "REFERENCIA" es un ejemplo contra el que debes comparar.`;
     for (const ex of ctx.examples) {
-      prompt += `\n- "${ex.label}" (${ex.name}): ${ex.slides.length} diapositivas de referencia.`;
+      prompt += `\n- "${ex.label || ex.name}" (${ex.name}): ${ex.slides.length} diapositivas de referencia.`;
     }
-    prompt += `
-
-Compara explícitamente la presentación del usuario con estas referencias en tu feedback, destacando diferencias en calidad, diseño y profundidad.`;
+    prompt += `\n\nCompara explícitamente la presentación del usuario con estas referencias en tu feedback, destacando diferencias en calidad, diseño y profundidad.`;
   }
 
   return prompt;
@@ -100,17 +88,19 @@ export async function evaluatePresentation(
     { text: buildPrompt(context) },
   ];
 
-  // Append reference example slides with a label before each set
-  for (const example of context.examples) {
-    parts.push({ text: `\n--- PRESENTACIÓN DE REFERENCIA: "${example.label}" (${example.name}) ---` });
-    for (const slide of example.slides) {
-      parts.push({
-        inlineData: { data: slide.base64, mimeType: slide.mimeType },
-      });
+  // Añadir diapositivas de presentaciones de referencia si existen
+  if (context.examples && context.examples.length > 0) {
+    for (const example of context.examples) {
+      parts.push({ text: `\n--- PRESENTACIÓN DE REFERENCIA: "${example.label || example.name}" (${example.name}) ---` });
+      for (const slide of example.slides) {
+        parts.push({
+          inlineData: { data: slide.base64, mimeType: slide.mimeType },
+        });
+      }
     }
   }
 
-  // Append the user's presentation slides
+  // Añadir diapositivas de la presentación a evaluar
   parts.push({ text: '\n--- PRESENTACIÓN A EVALUAR ---' });
   for (const slide of slides) {
     parts.push({

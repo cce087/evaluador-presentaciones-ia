@@ -1,19 +1,34 @@
-import { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
+  Sun,
+  Moon,
   Key,
   Cpu,
-  Moon,
-  Sun,
   Server,
+  FileText,
   Upload,
-  ExternalLink,
+  Trash2,
   HelpCircle,
+  Plus,
+  BookOpen,
 } from 'lucide-react';
-import { GEMINI_MODELS } from '../types';
-import type { ProviderType, LocalConfig, EvaluationContext } from '../types';
+import * as pdfjsLib from 'pdfjs-dist';
+import { processFile } from '../lib/fileProcessor';
+import { GEMINI_MODELS } from '../types/types';
+import type {
+  EvaluationContext,
+  LocalConfig,
+  ProviderType,
+  ReferenceExample,
+} from '../types/types';
+
+// Configuración del worker de PDF.js para extracción de texto limpio
+if (typeof window !== 'undefined' && 'GlobalWorkerOptions' in pdfjsLib) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+}
 
 interface SidebarProps {
-  theme: string;
+  theme: 'light' | 'dark';
   onToggleTheme: () => void;
   apiKey: string;
   isEditingKey: boolean;
@@ -30,7 +45,7 @@ interface SidebarProps {
   onContextChange: (context: EvaluationContext) => void;
 }
 
-export function Sidebar({
+export const Sidebar: React.FC<SidebarProps> = ({
   theme,
   onToggleTheme,
   apiKey,
@@ -46,159 +61,210 @@ export function Sidebar({
   onLocalConfigChange,
   context,
   onContextChange,
-}: SidebarProps) {
-  const [tempApiKey, setTempApiKey] = useState(apiKey);
-  const [showHowItWorks, setShowHowItWorks] = useState(false);
+}) => {
+  const [tempKey, setTempKey] = useState(apiKey);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const rubricInputRef = useRef<HTMLInputElement>(null);
+  const exampleInputRef = useRef<HTMLInputElement>(null);
 
-  const handleSaveKey = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSaveKey(tempApiKey.trim());
-  };
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Extrae texto legible de archivos TXT o PDF para la rúbrica
+  const handleRubricFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
+    setIsProcessing(true);
+    try {
+      let text = '';
+      if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
+        text = await file.text();
+      } else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let fullText = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const tokenized = await page.getTextContent();
+          const pageText = tokenized.items.map((item: any) => item.str).join(' ');
+          fullText += `[Página ${i}]\n${pageText}\n\n`;
+        }
+        text = fullText.trim();
+      } else {
+        throw new Error('Formato no soportado para la rúbrica. Usa TXT o PDF.');
+      }
+
       onContextChange({
         ...context,
-        rubric: { text: content, source: file.name },
+        rubric: {
+          text: text,
+          source: file.name,
+        },
       });
-    };
-    reader.readAsText(file);
+    } catch (err) {
+      alert('Error al leer el archivo de rúbrica: ' + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setIsProcessing(false);
+      if (rubricInputRef.current) rubricInputRef.current.value = '';
+    }
+  };
+
+  // Carga presentaciones de ejemplo procesando sus diapositivas
+  const handleExampleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsProcessing(true);
+    try {
+      const slides = await processFile(file);
+
+      const newExample: ReferenceExample = {
+        id: Date.now().toString(),
+        name: file.name,
+        label: file.name.replace(/\.[^/.]+$/, ''),
+        slides: slides,
+      };
+
+      onContextChange({
+        ...context,
+        examples: [...(context.examples || []), newExample],
+      });
+    } catch (err) {
+      alert('Error al procesar la presentación de referencia: ' + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setIsProcessing(false);
+      if (exampleInputRef.current) exampleInputRef.current.value = '';
+    }
+  };
+
+  const removeExample = (id: string) => {
+    onContextChange({
+      ...context,
+      examples: (context.examples || []).filter((ex) => ex.id !== id),
+    });
   };
 
   return (
-    <aside className="w-full md:w-80 bg-slate-900 text-slate-100 p-5 flex flex-col justify-between shrink-0 min-h-screen border-r border-slate-800">
-      <div className="space-y-6">
-        {/* Cabecera */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-primary-600 flex items-center justify-center font-black text-white shadow-md">
-              S
-            </div>
-            <div>
-              <h1 className="text-base font-bold leading-none">SlideJudge</h1>
-              <span className="text-[11px] text-slate-400 font-medium">Evaluador con IA</span>
-            </div>
+    <aside className="w-full md:w-80 bg-gray-900 border-r border-gray-800 text-gray-200 flex flex-col h-full min-h-screen">
+      {/* Header */}
+      <div className="p-4 border-b border-gray-800 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center font-bold text-white shadow-md">
+            S
           </div>
-          <button
-            onClick={onToggleTheme}
-            className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all"
-            title="Cambiar tema"
-          >
-            {theme === 'dark' ? <Sun className="w-4 h-4"/> : <Moon className="w-4 h-4"/>}
-          </button>
+          <div>
+            <h1 className="font-bold text-sm text-white">SlideJudge</h1>
+            <p className="text-xs text-gray-400">Evaluador con IA</p>
+          </div>
         </div>
 
-        {/* Pestañas de Selector de Proveedor */}
-        <div className="space-y-2">
-          <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+        <button
+          onClick={onToggleTheme}
+          className="p-2 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-gray-200 transition-colors"
+          title="Cambiar tema"
+        >
+          {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+        </button>
+      </div>
+
+      <div className="p-4 space-y-6 flex-1 overflow-y-auto">
+        {/* PROVEEDOR DE IA */}
+        <div className="space-y-3">
+          <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider block">
             Proveedor de IA
           </label>
-          <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-slate-950 border border-slate-800">
+          <div className="grid grid-cols-2 gap-2 p-1 bg-gray-950 rounded-xl border border-gray-800">
             <button
               onClick={() => onProviderChange('gemini')}
-              className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition-all ${
+              className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-medium transition-all ${
                 provider === 'gemini'
-                  ? 'bg-primary-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-gray-400 hover:text-gray-200'
               }`}
             >
-              <Cpu className="w-3.5 h-3.5"/>
+              <Cpu className="w-3.5 h-3.5" />
               Gemini API
             </button>
             <button
               onClick={() => onProviderChange('local')}
-              className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition-all ${
+              className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-medium transition-all ${
                 provider === 'local'
-                  ? 'bg-primary-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-gray-400 hover:text-gray-200'
               }`}
             >
-              <Server className="w-3.5 h-3.5"/>
+              <Server className="w-3.5 h-3.5" />
               Servidor Local
             </button>
           </div>
         </div>
 
-        {/* Configuración Gemini API */}
-        {provider === 'gemini' && (
-          <div className="space-y-4 animate-fade-in">
-            <div className="p-3.5 rounded-xl bg-slate-800/60 border border-slate-800 space-y-3">
+        {/* CONFIGURACIÓN SEGÚN PROVEEDOR */}
+        {provider === 'gemini' ? (
+          <div className="space-y-4">
+            <div className="p-3.5 rounded-xl bg-gray-950/60 border border-gray-800/80 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                  <Key className="w-3.5 h-3.5 text-primary-400"/>
-                  Gemini API Key
+                <span className="text-xs font-medium text-gray-300 flex items-center gap-1.5">
+                  <Key className="w-3.5 h-3.5 text-blue-400" /> Gemini API Key
                 </span>
                 {apiKey && !isEditingKey && (
-                  <button
-                    onClick={onRemoveKey}
-                    className="text-[10px] text-red-400 hover:underline font-semibold"
-                  >
-                    Eliminar
-                  </button>
+                  <span className="text-[10px] bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 px-2 py-0.5 rounded-full">
+                    Configurada
+                  </span>
                 )}
               </div>
 
-              {isEditingKey || !apiKey ? (
-                <form onSubmit={handleSaveKey} className="space-y-2">
+              {!apiKey || isEditingKey ? (
+                <div className="space-y-2">
                   <input
                     type="password"
-                    value={tempApiKey}
-                    onChange={(e) => setTempApiKey(e.target.value)}
                     placeholder="AIzaSy..."
-                    className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-primary-500"
+                    value={tempKey}
+                    onChange={(e) => setTempKey(e.target.value)}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
                   />
-                  <div className="flex items-center gap-2">
+                  <div className="flex gap-2">
                     <button
-                      type="submit"
-                      disabled={!tempApiKey.trim()}
-                      className="flex-1 py-1.5 bg-primary-600 hover:bg-primary-500 text-white text-xs font-bold rounded-lg transition-all disabled:opacity-50"
+                      onClick={() => onSaveKey(tempKey)}
+                      className="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-xs py-1.5 rounded-lg font-medium transition-colors"
                     >
                       Guardar
                     </button>
                     {apiKey && (
                       <button
-                        type="button"
                         onClick={onCancelKey}
-                        className="px-3 py-1.5 bg-slate-800 text-slate-300 text-xs font-semibold rounded-lg hover:bg-slate-700"
+                        className="px-3 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs py-1.5 rounded-lg font-medium transition-colors"
                       >
                         Cancelar
                       </button>
                     )}
                   </div>
-                </form>
+                </div>
               ) : (
-                <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900 text-xs text-slate-300 border border-slate-800">
-                  <span>••••••••••••••••</span>
-                  <button
-                    onClick={() => onCancelKey()}
-                    className="text-primary-400 hover:underline text-[11px] font-semibold"
-                  >
-                    Editar
-                  </button>
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-xs text-gray-400 font-mono">••••••••••••</span>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => onSaveKey('')}
+                      className="text-xs text-blue-400 hover:text-blue-300 px-2 py-1 rounded"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      onClick={onRemoveKey}
+                      className="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded"
+                    >
+                      Borrar
+                    </button>
+                  </div>
                 </div>
               )}
-
-              <a
-                href="[https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)"
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 text-[11px] text-primary-400 hover:underline font-semibold"
-              >
-                Obtén tu API key en Google AI Studio <ExternalLink className="w-3 h-3"/>
-              </a>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-400">Modelo de Gemini</label>
+              <label className="text-xs font-medium text-gray-300">Modelo de Gemini</label>
               <select
                 value={model}
                 onChange={(e) => onModelChange(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-xs text-slate-200 focus:outline-none focus:border-primary-500"
+                className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
                 {GEMINI_MODELS.map((m) => (
                   <option key={m.id} value={m.id}>
@@ -208,113 +274,154 @@ export function Sidebar({
               </select>
             </div>
           </div>
-        )}
-
-        {/* Configuración Servidor Local */}
-        {provider === 'local' && (
-          <div className="space-y-4 animate-fade-in p-3.5 rounded-xl bg-slate-800/60 border border-slate-800">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300 mb-2">
-              <Server className="w-4 h-4 text-primary-400"/>
-              Configuración de IA Local
-            </div>
-
-            <div className="space-y-1">
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Presets Rápidos</span>
-              <div className="grid grid-cols-2 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() =>
-                    onLocalConfigChange({
-                      baseUrl: 'http://localhost:11434',
-                      modelName: 'qwen2-vl',
-                    })
-                  }
-                  className="py-1 px-2 rounded bg-slate-900 border border-slate-700 hover:border-primary-500 text-[11px] text-slate-300 font-semibold text-center"
-                >
-                  Ollama (11434)
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    onLocalConfigChange({
-                      baseUrl: 'http://localhost:1234',
-                      modelName: 'qwen2-vl',
-                    })
-                  }
-                  className="py-1 px-2 rounded bg-slate-900 border border-slate-700 hover:border-primary-500 text-[11px] text-slate-300 font-semibold text-center"
-                >
-                  LM Studio (1234)
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-[11px] font-bold text-slate-400">URL del Servidor</label>
+        ) : (
+          <div className="space-y-3 p-3.5 rounded-xl bg-gray-950/60 border border-gray-800/80">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-gray-300">URL Servidor Local (Ollama)</label>
               <input
                 type="text"
                 value={localConfig.baseUrl}
                 onChange={(e) => onLocalConfigChange({ ...localConfig, baseUrl: e.target.value })}
                 placeholder="http://localhost:11434"
-                className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-primary-500"
+                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
               />
             </div>
-
-            <div className="space-y-1">
-              <label className="text-[11px] font-bold text-slate-400">Modelo Multimodal</label>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-gray-300">Nombre del Modelo</label>
               <input
                 type="text"
                 value={localConfig.modelName}
                 onChange={(e) => onLocalConfigChange({ ...localConfig, modelName: e.target.value })}
-                placeholder="qwen2-vl, llama3.2-vision, llava..."
-                className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-primary-500"
+                placeholder="qwen2-vl / llama3"
+                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
               />
             </div>
           </div>
         )}
 
-        {/* Rúbrica de referencia */}
-        <div className="space-y-3 pt-2 border-t border-slate-800">
-          <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+        {/* MATERIALES DE REFERENCIA */}
+        <div className="space-y-4 pt-2 border-t border-gray-800">
+          <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider block">
             Materiales de Referencia
           </label>
+
+          {/* 1) RÚBRICA DE EVALUACIÓN */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-300">Rúbrica de evaluación</span>
-              <label className="text-[11px] text-primary-400 hover:underline cursor-pointer flex items-center gap-1 font-semibold">
-                <Upload className="w-3 h-3"/> Subir archivo
-                <input type="file" accept=".txt,.pdf,.md" onChange={handleFileUpload} className="hidden" />
-              </label>
+              <span className="text-xs font-medium text-gray-300 flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-blue-400" /> Rúbrica de evaluación
+              </span>
+              <button
+                onClick={() => rubricInputRef.current?.click()}
+                disabled={isProcessing}
+                className="text-[11px] text-blue-400 hover:text-blue-300 flex items-center gap-1 font-medium disabled:opacity-50"
+              >
+                <Upload className="w-3 h-3" />
+                {isProcessing ? 'Procesando...' : 'Subir archivo'}
+              </button>
+              <input
+                ref={rubricInputRef}
+                type="file"
+                accept=".txt,.pdf"
+                onChange={handleRubricFileUpload}
+                className="hidden"
+              />
             </div>
+
             <textarea
+              rows={4}
               value={context.rubric?.text || ''}
               onChange={(e) =>
                 onContextChange({
                   ...context,
-                  rubric: e.target.value ? { text: e.target.value, source: 'manual' } : null,
+                  rubric: {
+                    text: e.target.value,
+                    source: context.rubric?.source || 'Manual',
+                  },
                 })
               }
-              placeholder="Pega aquí los criterios de evaluación o sube un archivo..."
-              className="w-full h-24 p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300 placeholder-slate-600 focus:outline-none focus:border-primary-500 resize-none"
+              placeholder="Pega la rúbrica aquí o sube un archivo (PDF/TXT)..."
+              className="w-full bg-gray-950 border border-gray-800 rounded-xl p-3 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500 font-sans"
             />
+
+            {context.rubric?.text && (
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-gray-400 truncate max-w-[180px]">
+                  Fuente: {context.rubric.source}
+                </span>
+                <button
+                  onClick={() => onContextChange({ ...context, rubric: null })}
+                  className="text-red-400 hover:text-red-300 flex items-center gap-1 font-medium"
+                >
+                  <Trash2 className="w-3 h-3" /> Borrar
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* 2) PRESENTACIONES DE REFERENCIA DE AÑOS ANTERIORES */}
+          <div className="space-y-2 pt-2 border-t border-gray-800/60">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-gray-300 flex items-center gap-1.5">
+                <BookOpen className="w-3.5 h-3.5 text-emerald-400" /> Ejemplos de referencia
+              </span>
+              <button
+                onClick={() => exampleInputRef.current?.click()}
+                disabled={isProcessing}
+                className="text-[11px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-medium disabled:opacity-50"
+              >
+                <Plus className="w-3 h-3" />
+                Añadir ejemplo
+              </button>
+              <input
+                ref={exampleInputRef}
+                type="file"
+                accept=".pdf,.pptx"
+                onChange={handleExampleFileUpload}
+                className="hidden"
+              />
+            </div>
+
+            <p className="text-[11px] text-gray-500">
+              Sube presentaciones de años anteriores para usarlas como nivel de referencia comparativo.
+            </p>
+
+            {context.examples && context.examples.length > 0 ? (
+              <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                {context.examples.map((ex) => (
+                  <div
+                    key={ex.id}
+                    className="flex items-center justify-between p-2 rounded-lg bg-gray-950 border border-gray-800 text-xs text-gray-300"
+                  >
+                    <div className="truncate pr-2">
+                      <p className="font-medium truncate">{ex.name}</p>
+                      <p className="text-[10px] text-gray-500">{ex.slides.length} diapositivas</p>
+                    </div>
+                    <button
+                      onClick={() => removeExample(ex.id)}
+                      className="text-gray-500 hover:text-red-400 transition-colors p-1"
+                      title="Eliminar ejemplo"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-3 rounded-xl border border-dashed border-gray-800 bg-gray-950/40 text-center">
+                <span className="text-xs text-gray-500">Sin presentaciones de referencia</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="pt-4 border-t border-slate-800 space-y-2">
-        <button
-          onClick={() => setShowHowItWorks(!showHowItWorks)}
-          className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition-all font-semibold"
-        >
-          <HelpCircle className="w-4 h-4"/> ¿Cómo funciona?
-        </button>
-        {showHowItWorks && (
-          <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-400 leading-relaxed space-y-1 animate-fade-in">
-            <p>1. Selecciona <strong>Gemini API</strong> o <strong>Servidor Local</strong>.</p>
-            <p>2. Sube tu archivo PDF o PPTX.</p>
-            <p>3. Obtén tu evaluación y expórtala en PDF.</p>
-          </div>
-        )}
+      <div className="p-4 border-t border-gray-800 text-xs text-gray-500 flex items-center justify-between">
+        <span className="flex items-center gap-1.5">
+          <HelpCircle className="w-3.5 h-3.5" /> ¿Cómo funciona?
+        </span>
+        <span>v1.0</span>
       </div>
     </aside>
   );
-}
+};

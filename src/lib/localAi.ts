@@ -1,4 +1,4 @@
-import type { EvaluationResult, ProcessedSlide, EvaluationContext } from '../types';
+import type { EvaluationResult, ProcessedSlide, EvaluationContext } from '../types/types';
 
 export async function evaluateWithLocalAi(
   baseUrl: string,
@@ -9,12 +9,13 @@ export async function evaluateWithLocalAi(
   const cleanUrl = baseUrl.replace(/\/+$/, '');
   const endpoint = cleanUrl.endsWith('/v1') ? `${cleanUrl}/chat/completions` : `${cleanUrl}/v1/chat/completions`;
 
+  // 1. Incluir Rúbrica si está disponible
   const rubricText = context.rubric?.text
-    ? `\nCRITERIOS / RÚBRICA ESPECÍFICA A SEGUIR:\n${context.rubric.text}\n`
+    ? `\nCRITERIOS / RÚBRICA ESPECÍFICA A SEGUIR (Fuente: ${context.rubric.source}):\n${context.rubric.text}\n`
     : '';
 
   const prompt = `Eres un experto evaluador de presentaciones académicas y profesionales. 
-Analiza detalladamente estas imágenes de las diapositivas de la presentación.${rubricText}
+Analiza detalladamente las imágenes de las diapositivas proporcionadas.${rubricText}
 
 Debes responder ÚNICAMENTE con un objeto JSON válido (sin texto antes o después, ni comillas markdown como \`\`\`json) siguiendo esta estructura:
 
@@ -44,6 +45,36 @@ Debes responder ÚNICAMENTE con un objeto JSON válido (sin texto antes o despu�
 
   const contentParts: any[] = [{ type: 'text', text: prompt }];
 
+  // 2. Incluir Ejemplos de Referencia si existen
+  if (context.examples && context.examples.length > 0) {
+    contentParts.push({
+      type: 'text',
+      text: `\n--- PRESENTACIONES DE REFERENCIA / EJEMPLOS DE AÑOS ANTERIORES (USAR SOLO COMO GUÍA Y NIVEL DE COMPARACIÓN, NO EVALUAR ESTAS) ---`,
+    });
+
+    context.examples.forEach((example) => {
+      contentParts.push({
+        type: 'text',
+        text: `Ejemplo de referencia "${example.name}":`,
+      });
+
+      example.slides.forEach((refSlide) => {
+        contentParts.push({
+          type: 'image_url',
+          image_url: {
+            url: `data:${refSlide.mimeType};base64,${refSlide.base64}`,
+          },
+        });
+      });
+    });
+  }
+
+  // 3. Incluir las diapositivas de la presentación actual a evaluar
+  contentParts.push({
+    type: 'text',
+    text: `\n--- PRESENTACIÓN OBJETIVO A EVALUAR AHORA ---`,
+  });
+
   slides.forEach((slide) => {
     contentParts.push({
       type: 'image_url',
@@ -53,6 +84,7 @@ Debes responder ÚNICAMENTE con un objeto JSON válido (sin texto antes o despu�
     });
   });
 
+  // 4. Petición al servidor local
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -75,6 +107,7 @@ Debes responder ÚNICAMENTE con un objeto JSON válido (sin texto antes o despu�
     throw new Error('El servidor local no devolvió contenido.');
   }
 
+  // Limpieza y parsing del JSON retornado por el modelo
   const cleanJson = rawContent
     .replace(/^```json\s*/i, '')
     .replace(/^```\s*/i, '')
