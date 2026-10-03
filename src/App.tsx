@@ -1,12 +1,9 @@
-import { evaluateWithGroq } from './lib/groq';
 import { useCallback, useState } from 'react';
 import {
   AlertCircle,
   ShieldCheck,
   Cpu,
   ClipboardList,
-  Server,
-  Zap,
 } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { DropZone } from './components/DropZone';
@@ -17,9 +14,8 @@ import { useApiKey } from './hooks/useApiKey';
 import { useModel } from './hooks/useModel';
 import { processFile } from './lib/fileProcessor';
 import { evaluatePresentation } from './lib/gemini';
-import { evaluateWithLocalAi } from './lib/localAi';
 import { GEMINI_MODELS } from './types';
-import type { EvaluationContext, EvaluationResult, ProcessedSlide, ProviderType, LocalConfig } from './types';
+import type { EvaluationContext, EvaluationResult, ProcessedSlide } from './types';
 
 type AppState = 'idle' | 'processing' | 'analyzing' | 'results' | 'error';
 
@@ -31,15 +27,6 @@ export default function App() {
   const { apiKey, isEditing: isEditingKey, setApiKey, removeApiKey, setIsEditing: setIsEditingKey } = useApiKey();
   const { model, setModel } = useModel();
 
-  // Estado del Proveedor y Configuración de Groq
-  const [provider, setProvider] = useState<ProviderType>('gemini');
-  const [groqApiKey, setGroqApiKey] = useState<string>(() => localStorage.getItem('groq_api_key') || '');
-  
-  const [localConfig, setLocalConfig] = useState<LocalConfig>({
-    baseUrl: 'http://localhost:11434',
-    modelName: 'qwen/qwen3.8-27b',
-  });
-
   const [context, setContext] = useState<EvaluationContext>(EMPTY_CONTEXT);
   const [state, setState] = useState<AppState>('idle');
   const [fileName, setFileName] = useState('');
@@ -49,15 +36,9 @@ export default function App() {
 
   const handleFile = useCallback(
     async (file: File) => {
-      // Validaciones previas según el proveedor seleccionado
-      if (provider === 'gemini' && !apiKey) {
+      // Validación previa - solo Gemini
+      if (!apiKey) {
         setError('Primero introduce tu API key de Gemini en la barra lateral.');
-        setState('error');
-        return;
-      }
-
-      if (provider === 'groq' && !groqApiKey) {
-        setError('Primero introduce tu API key de Groq.');
         setState('error');
         return;
       }
@@ -78,38 +59,21 @@ export default function App() {
 
         let evalResult: EvaluationResult | null = null;
 
-        if (provider === 'gemini') {
-          const modelsToTry = Array.from(new Set([model, ...FALLBACK_MODEL_CHAIN]));
-          let lastError: Error | null = null;
+        // Evaluación con Gemini
+        const modelsToTry = Array.from(new Set([model, ...FALLBACK_MODEL_CHAIN]));
+        let lastError: Error | null = null;
 
-          for (const targetModel of modelsToTry) {
-            try {
-              evalResult = await evaluatePresentation(apiKey, slides, targetModel, context);
-              if (evalResult) break;
-            } catch (err) {
-              lastError = err instanceof Error ? err : new Error('Error de conexión con Gemini');
-            }
+        for (const targetModel of modelsToTry) {
+          try {
+            evalResult = await evaluatePresentation(apiKey, slides, targetModel, context);
+            if (evalResult) break;
+          } catch (err) {
+            lastError = err instanceof Error ? err : new Error('Error de conexión con Gemini');
           }
+        }
 
-          if (!evalResult) {
-            throw lastError || new Error('No se pudo evaluar con Gemini.');
-          }
-        } else if (provider === 'groq') {
-          // Evaluación con Groq
-          evalResult = await evaluateWithGroq(
-            groqApiKey,
-            slides,
-            'qwen/qwen3.8-27b',
-            context
-          );
-        } else {
-          // Evaluación con servidor local
-          evalResult = await evaluateWithLocalAi(
-            localConfig.baseUrl,
-            localConfig.modelName,
-            slides,
-            context
-          );
+        if (!evalResult) {
+          throw lastError || new Error('No se pudo evaluar con Gemini.');
         }
 
         setResult(evalResult);
@@ -120,7 +84,7 @@ export default function App() {
         setState('error');
       }
     },
-    [apiKey, groqApiKey, model, provider, localConfig, context]
+    [apiKey, model, context]
   );
 
   const handleReset = () => {
@@ -131,12 +95,7 @@ export default function App() {
     setFileName('');
   };
 
-  const modelLabel =
-    provider === 'gemini'
-      ? GEMINI_MODELS.find((m) => m.id === model)?.label ?? model
-      : provider === 'groq'
-      ? 'Groq (qwen/qwen3.8-27b)'
-      : `Local: ${localConfig.modelName}`;
+  const modelLabel = GEMINI_MODELS.find((m) => m.id === model)?.label ?? model;
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
@@ -151,10 +110,6 @@ export default function App() {
           onCancelKey={() => setIsEditingKey(false)}
           model={model}
           onModelChange={setModel}
-          provider={provider}
-          onProviderChange={setProvider}
-          localConfig={localConfig}
-          onLocalConfigChange={setLocalConfig}
           context={context}
           onContextChange={setContext}
         />
@@ -173,41 +128,16 @@ export default function App() {
             <div className="space-y-6 animate-fade-in print:hidden">
               <DropZone
                 onFileSelected={handleFile}
-                disabled={
-                  (provider === 'gemini' && !apiKey) ||
-                  (provider === 'groq' && !groqApiKey)
-                }
+                disabled={!apiKey}
               />
 
-              {/* Selector de Proveedor en la zona principal si la sidebar no tiene el campo */}
-              {provider === 'groq' && !groqApiKey && (
-                <div className="p-4 rounded-2xl bg-orange-50 dark:bg-orange-950/40 border border-orange-300 dark:border-orange-800/60 shadow-sm space-y-3">
-                  <div className="flex items-center gap-2 text-orange-900 dark:text-orange-300 font-bold text-sm">
-                    <Zap className="w-4 h-4 text-orange-600 dark:text-orange-400" />
-                    Introduce tu API Key de Groq
-                  </div>
-                  <div className="flex gap-2">
-                    <input
-                      type="password"
-                      placeholder="gsk_..."
-                      value={groqApiKey}
-                      onChange={(e) => {
-                        setGroqApiKey(e.target.value);
-                        localStorage.setItem('groq_api_key', e.target.value);
-                      }}
-                      className="flex-1 bg-white dark:bg-gray-900 border border-orange-300 dark:border-orange-700 rounded-lg px-3 py-1.5 text-sm"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {provider === 'gemini' && !apiKey && (
+              {!apiKey && (
                 <div className="flex items-start gap-3.5 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/60 shadow-sm">
                   <ShieldCheck className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5"/>
                   <div className="text-sm text-amber-950 dark:text-amber-200">
                     <p className="font-bold mb-1 text-amber-900 dark:text-amber-300">Se requiere API Key</p>
                     <p className="font-medium text-amber-800 dark:text-amber-200/90 leading-relaxed">
-                      Introduce tu API key de Gemini o cambia a la pestaña <strong>Servidor Local</strong> en el menú lateral.
+                      Introduce tu API key de Gemini en el menú lateral.
                     </p>
                   </div>
                 </div>
@@ -226,7 +156,7 @@ export default function App() {
               <div className="flex flex-wrap items-center gap-2.5 p-3.5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm">
                 <span className="text-xs font-bold text-gray-700 dark:text-gray-300 mr-1">Proveedor activo:</span>
                 <span className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-primary-50 dark:bg-primary-950/50 text-xs font-bold text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-800">
-                  {provider === 'gemini' ? <Cpu className="w-3.5 h-3.5"/> : provider === 'groq' ? <Zap className="w-3.5 h-3.5 text-orange-500"/> : <Server className="w-3.5 h-3.5"/>}
+                  <Cpu className="w-3.5 h-3.5"/>
                   {modelLabel}
                 </span>
                 {context.rubric && (

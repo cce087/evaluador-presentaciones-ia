@@ -67,10 +67,5 @@ export interface EvaluationContext {
   examples: ReferenceExample[];
 }
 
-// Configuración adicional para soporte de IA Local
-export type ProviderType = 'gemini' | 'local' | 'groq';
-
-export interface LocalConfig {
-  baseUrl: string;
-  modelName: string;
-}
+// Configuración de proveedor de IA (solo Gemini)
+export type ProviderType = 'gemini';
