@@ -76,9 +76,6 @@ export function ResultsPanel({ result, slides, fileName, onReset }: ResultsPanel
             <div key={idx} className="p-3.5 rounded-xl bg-gray-50 dark:bg-gray-950 border border-gray-100 dark:border-gray-800">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs font-bold text-gray-900 dark:text-gray-100">{c.name}</span>
-                <span className="text-xs font-extrabold text-primary-600 dark:text-primary-400">
-                  {c.score}/{c.maxScore}
-                </span>
               </div>
               <p className="text-xs text-gray-600 dark:text-gray-400 leading-normal">{c.feedback}</p>
             </div>
@@ -125,9 +122,6 @@ export function ResultsPanel({ result, slides, fileName, onReset }: ResultsPanel
                     <h5 className="text-sm font-bold text-gray-900 dark:text-gray-100">
                       {slide.title || `Diapositiva ${slide.slideNumber}`}
                     </h5>
-                    <span className="text-xs font-black text-primary-600 dark:text-primary-400">
-                      {slide.score}/{slide.maxScore}
-                    </span>
                   </div>
 
                   {slide.strengths && slide.strengths.length > 0 && (

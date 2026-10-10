@@ -1,15 +1,11 @@
 export interface CriteriaScore {
   name: string;
-  score: number;
-  maxScore: number;
   feedback: string;
 }
 
 export interface SlideFeedback {
   slideNumber: number;
   title: string;
-  score: number;
-  maxScore: number;
   strengths: string[];
   improvements: string[];
 }

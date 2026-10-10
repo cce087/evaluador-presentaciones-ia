@@ -14,15 +14,6 @@ export function SlideFeedback({ slide, index }: SlideFeedbackProps) {
   // Obtener la imagen de la diapositiva (admite diferentes nombres de propiedad)
   const slideImageUrl = slide.imageUrl || slide.image || slide.dataUrl;
 
-  const percentage = (slide.score / slide.maxScore) * 100;
-
-  const getBadgeColor = (pct: number) => {
-    if (pct >= 80) return 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800';
-    if (pct >= 60) return 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800';
-    if (pct >= 40) return 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800';
-    return 'bg-red-100 text-red-800 border-red-300 dark:bg-red-950/50 dark:text-red-300 dark:border-red-800';
-  };
-
   return (
     <>
       <div
@@ -48,9 +39,6 @@ export function SlideFeedback({ slide, index }: SlideFeedbackProps) {
             </div>
           </div>
           <div className="flex items-center gap-3 shrink-0">
-            <span className={`px-3 py-1 rounded-lg text-xs font-bold border ${getBadgeColor(percentage)}`}>
-              {slide.score.toFixed(1)} / {slide.maxScore}
-            </span>
             <ChevronDown
               className={`w-4 h-4 text-gray-500 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
             />

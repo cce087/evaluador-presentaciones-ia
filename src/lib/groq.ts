@@ -29,17 +29,13 @@ Debes responder ÚNICAMENTE con un objeto JSON válido siguiendo esta estructura
   "criteria": [
     {
       "name": "Diseño Visual y Legibilidad",
-      "score": 8,
-      "maxScore": 10,
-      "feedback": "Comentario detallado."
+      "feedback": "Comentario cualitativo detallado."
     }
   ],
   "slides": [
     {
       "slideNumber": 1,
       "title": "Título de la diapositiva",
-      "score": 8,
-      "maxScore": 10,
       "strengths": ["Punto fuerte 1"],
       "improvements": ["Área de mejora 1"]
     }
@@ -51,7 +47,7 @@ IMPORTANTE para overallAssessment: Debe ser EXACTAMENTE uno de estos tres valore
 - "Mejorable" - si la presentación es suficiente pero tiene áreas claras de mejora
 - "Incompleta" - si la presentación es insuficiente, tiene carencias importantes o no cumple el mínimo
 
-NO des una nota numérica global.`;
+MUY IMPORTANTE: NO des NINGUNA nota numérica en ningún campo (ni global, ni por criterio, ni por diapositiva). Solo feedback cualitativo: lo que está bien, lo que está mal, lo que falta y lo que se puede mejorar.`;
 
   const contentParts: any[] = [{ type: 'text', text: prompt }];
 

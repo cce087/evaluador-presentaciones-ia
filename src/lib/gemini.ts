@@ -15,11 +15,9 @@ const EVALUATION_SCHEMA = {
         type: Type.OBJECT,
         properties: {
           name: { type: Type.STRING },
-          score: { type: Type.NUMBER },
-          maxScore: { type: Type.NUMBER },
           feedback: { type: Type.STRING },
         },
-        required: ['name', 'score', 'maxScore', 'feedback'],
+        required: ['name', 'feedback'],
       },
     },
     slides: {
@@ -29,12 +27,10 @@ const EVALUATION_SCHEMA = {
         properties: {
           slideNumber: { type: Type.NUMBER },
           title: { type: Type.STRING },
-          score: { type: Type.NUMBER },
-          maxScore: { type: Type.NUMBER },
           strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
           improvements: { type: Type.ARRAY, items: { type: Type.STRING } },
         },
-        required: ['slideNumber', 'title', 'score', 'maxScore', 'strengths', 'improvements'],
+        required: ['slideNumber', 'title', 'strengths', 'improvements'],
       },
     },
   },
@@ -76,15 +72,16 @@ function buildPrompt(ctx: EvaluationContext): string {
 
 Cada imagen corresponde a una diapositiva en orden secuencial (diapositiva 1, 2, 3, etc.).
 
-Evalúa los siguientes 4 criterios principales:
-1. "Estructura" (0-10): Organización lógica del contenido, flujo de ideas, introducción, desarrollo y conclusión.
-2. "Diseño visual" (0-10): Uso de colores, tipografía, imágenes, consistencia visual, legibilidad y aprovechamiento del espacio.
-3. "Claridad del texto" (0-10): Concisión, redacción clara, ausencia de texto excesivo, uso efectivo de viñetas y títulos.
-4. "Dominio del tema" (0-10): Profundidad del contenido, precisión, relevancia y calidad de la información presentada.
+Evalúa los siguientes 4 criterios principales (SOLO feedback cualitativo, SIN puntuaciones numéricas):
+1. "Estructura": Organización lógica del contenido, flujo de ideas, introducción, desarrollo y conclusión.
+2. "Diseño visual": Uso de colores, tipografía, imágenes, consistencia visual, legibilidad y aprovechamiento del espacio.
+3. "Claridad del texto": Concisión, redacción clara, ausencia de texto excesivo, uso efectivo de viñetas y títulos.
+4. "Dominio del tema": Profundidad del contenido, precisión, relevancia y calidad de la información presentada.
+
+Para cada criterio, proporciona ÚNICAMENTE un comentario cualitativo (qué está bien, qué está mal, qué se puede mejorar). NO incluyas puntuaciones numéricas de ningún tipo.
 
 Para cada diapositiva individual, proporciona:
 - Un título descriptivo
-- Una puntuación de 0 a 10
 - 1-3 puntos fuertes (strengths)
 - 1-3 recomendaciones de mejora (improvements)
 
@@ -95,12 +92,12 @@ Proporciona también:
   * "Incompleta" - si la presentación es insuficiente, tiene carencias importantes o no cumple el mínimo
 - summary: Un resumen general de 2-3 frases sobre la calidad de la presentación
 
-IMPORTANTE: No des una nota numérica global. La evaluación global debe ser SOLO una de las tres categorías textuales arriba indicadas. Esto es para no condicionar al profesor que pueda tener otros criterios de calificación.
+MUY IMPORTANTE: NO des NINGUNA nota numérica en ningún campo (ni global, ni por criterio, ni por diapositiva). Solo feedback cualitativo: lo que está bien, lo que está mal, lo que falta y lo que se puede mejorar. Esto es para no condicionar al profesor, que puede tener sus propios criterios de calificación.
 
 Responde en español.`;
 
   if (ctx.rubric?.text) {
-    prompt += `\n\n## RÚBRICA DE EVALUACIÓN (Fuente: ${ctx.rubric.source || 'Manual'})\n\nDebes evaluar la presentación comparándola explícitamente con la siguiente rúbrica. Ajusta tus puntuaciones y feedback a los criterios y estándares definidos en ella:\n\n${ctx.rubric.text}`;
+    prompt += `\n\n## RÚBRICA DE EVALUACIÓN (Fuente: ${ctx.rubric.source || 'Manual'})\n\nDebes evaluar la presentación comparándola explícitamente con la siguiente rúbrica. Ajusta tu feedback cualitativo a los criterios y estándares definidos en ella (NO asignes puntuaciones numéricas):\n\n${ctx.rubric.text}`;
   }
 
   if (ctx.examples && ctx.examples.length > 0) {
