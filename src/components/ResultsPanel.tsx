@@ -41,14 +41,23 @@ export function ResultsPanel({ result, slides, fileName, onReset }: ResultsPanel
         </div>
       </div>
 
-      {/* Resumen de Nota Global */}
+      {/* Resumen de Evaluación Global */}
       <div className="p-6 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col md:flex-row items-center gap-6">
-        <div className="flex flex-col items-center justify-center p-4 rounded-xl bg-primary-50 dark:bg-primary-950/50 border border-primary-200 dark:border-primary-800 min-w-[140px]">
-          <span className="text-3xl font-black text-primary-600 dark:text-primary-400">
-            {result.overallScore} / {result.maxScore}
+        <div className="flex flex-col items-center justify-center p-4 rounded-xl min-w-[160px]"
+          style={{
+            backgroundColor: result.overallAssessment === 'Correcto' ? '#ecfdf5' : result.overallAssessment === 'Mejorable' ? '#fffbeb' : '#fef2f2',
+            borderColor: result.overallAssessment === 'Correcto' ? '#a7f3d0' : result.overallAssessment === 'Mejorable' ? '#fde68a' : '#fecaca',
+          }}
+        >
+          <span className="text-2xl font-black" style={{
+            color: result.overallAssessment === 'Correcto' ? '#065f46' : result.overallAssessment === 'Mejorable' ? '#92400e' : '#991b1b'
+          }}>
+            {result.overallAssessment}
           </span>
-          <span className="text-[11px] font-bold text-primary-800 dark:text-primary-300 uppercase tracking-wider mt-1">
-            Nota Global
+          <span className="text-[11px] font-bold uppercase tracking-wider mt-1" style={{
+            color: result.overallAssessment === 'Correcto' ? '#065f46' : result.overallAssessment === 'Mejorable' ? '#92400e' : '#991b1b'
+          }}>
+            Evaluación Global
           </span>
         </div>
         <div className="flex-1 text-sm text-gray-700 dark:text-gray-300 leading-relaxed">

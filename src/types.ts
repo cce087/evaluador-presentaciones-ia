@@ -14,9 +14,10 @@ export interface SlideFeedback {
   improvements: string[];
 }
 
+export type OverallAssessment = 'Correcto' | 'Mejorable' | 'Incompleta';
+
 export interface EvaluationResult {
-  overallScore: number;
-  maxScore: number;
+  overallAssessment: OverallAssessment;
   summary: string;
   criteria: CriteriaScore[];
   slides: SlideFeedback[];

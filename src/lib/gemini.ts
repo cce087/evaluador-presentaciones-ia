@@ -4,8 +4,10 @@ import type { EvaluationContext, EvaluationResult, ProcessedSlide } from '../typ
 const EVALUATION_SCHEMA = {
   type: Type.OBJECT,
   properties: {
-    overallScore: { type: Type.NUMBER, description: 'Puntuación general de 0 a 10' },
-    maxScore: { type: Type.NUMBER, description: 'Puntuación máxima posible (10)' },
+    overallAssessment: { 
+      type: Type.STRING, 
+      description: 'Evaluación general: "Correcto" (presentación bien), "Mejorable" (presentación suficiente), "Incompleta" (presentación insuficiente)' 
+    },
     summary: { type: Type.STRING, description: 'Resumen general de la presentación en 2-3 frases' },
     criteria: {
       type: Type.ARRAY,
@@ -36,7 +38,7 @@ const EVALUATION_SCHEMA = {
       },
     },
   },
-  required: ['overallScore', 'maxScore', 'summary', 'criteria', 'slides'],
+  required: ['overallAssessment', 'summary', 'criteria', 'slides'],
 };
 
 // Función auxiliar para reintentar peticiones en caso de saturación (503/429)
@@ -87,8 +89,13 @@ Para cada diapositiva individual, proporciona:
 - 1-3 recomendaciones de mejora (improvements)
 
 Proporciona también:
-- overallScore: La puntuación general ponderada de 0 a 10
+- overallAssessment: Una evaluación general cualitativa con EXACTAMENTE uno de estos tres valores:
+  * "Correcto" - si la presentación en general está bien (cumple expectativas, buen nivel)
+  * "Mejorable" - si la presentación es suficiente pero tiene áreas claras de mejora
+  * "Incompleta" - si la presentación es insuficiente, tiene carencias importantes o no cumple el mínimo
 - summary: Un resumen general de 2-3 frases sobre la calidad de la presentación
+
+IMPORTANTE: No des una nota numérica global. La evaluación global debe ser SOLO una de las tres categorías textuales arriba indicadas. Esto es para no condicionar al profesor que pueda tener otros criterios de calificación.
 
 Responde en español.`;
 

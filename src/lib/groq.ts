@@ -24,8 +24,7 @@ Analiza las imágenes de las diapositivas proporcionadas.${rubricText}
 Debes responder ÚNICAMENTE con un objeto JSON válido siguiendo esta estructura:
 
 {
-  "overallScore": 8.5,
-  "maxScore": 10,
+  "overallAssessment": "Correcto",
   "summary": "Resumen ejecutivo del análisis general.",
   "criteria": [
     {
@@ -45,7 +44,14 @@ Debes responder ÚNICAMENTE con un objeto JSON válido siguiendo esta estructura
       "improvements": ["Área de mejora 1"]
     }
   ]
-}`;
+}
+
+IMPORTANTE para overallAssessment: Debe ser EXACTAMENTE uno de estos tres valores:
+- "Correcto" - si la presentación en general está bien (cumple expectativas, buen nivel)
+- "Mejorable" - si la presentación es suficiente pero tiene áreas claras de mejora
+- "Incompleta" - si la presentación es insuficiente, tiene carencias importantes o no cumple el mínimo
+
+NO des una nota numérica global.`;
 
   const contentParts: any[] = [{ type: 'text', text: prompt }];
 
