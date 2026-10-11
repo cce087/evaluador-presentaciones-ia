@@ -7,19 +7,19 @@ export function useApiKey() {
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = sessionStorage.getItem(STORAGE_KEY);
     if (stored) setApiKeyState(stored);
     else setIsEditing(true);
   }, []);
 
   const setApiKey = useCallback((key: string) => {
     setApiKeyState(key);
-    localStorage.setItem(STORAGE_KEY, key);
+    sessionStorage.setItem(STORAGE_KEY, key);
     setIsEditing(false);
   }, []);
 
   const removeApiKey = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
+    sessionStorage.removeItem(STORAGE_KEY);
     setApiKeyState('');
     setIsEditing(true);
   }, []);
