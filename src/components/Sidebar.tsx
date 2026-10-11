@@ -19,11 +19,6 @@ import type {
   ReferenceExample,
 } from '../types';
 
-// Configuración del worker de PDF.js para extracción de texto limpio
-if (typeof window !== 'undefined' && 'GlobalWorkerOptions' in pdfjsLib) {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
-}
-
 interface SidebarProps {
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
