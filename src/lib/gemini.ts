@@ -119,6 +119,7 @@ export async function evaluatePresentation(
 ): Promise<EvaluationResult> {
   // Modelos Gemini 3.x válidos para este contexto
   const validModels = [
+    'gemini-flash-latest',
     'gemini-3.8-flash',
     'gemini-3.7-flash',
     'gemini-3.6-flash',
@@ -127,8 +128,8 @@ export async function evaluatePresentation(
     'gemini-3.1-flash-lite',
   ];
 
-  // Si el modelo viene vacío o es de versiones 1.x/2.x antiguas, se asigna automáticamente gemini-3.8-flash
-  const targetModel = validModels.includes(model) ? model : 'gemini-3.8-flash';
+  // Si el modelo viene vacío o es de versiones 1.x/2.x antiguas, se asigna automáticamente gemini-flash-latest
+  const targetModel = validModels.includes(model) ? model : 'gemini-flash-latest';
 
   const genAI = new GoogleGenAI({ apiKey });
   const parts: Array<{ text: string } | { inlineData: { data: string; mimeType: string } }> = [
