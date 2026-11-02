@@ -11,9 +11,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.app.json"
   },
   "dependencies": {
-    "@google/genai": "^2.30.0",
+    "@google/genai": "^2.31.0",
     "jszip": "^3.10.2",
-    "lucide-react": "^1.59.0",
+    "lucide-react": "^1.61.0",
     "pdfjs-dist": "^6.4.299",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
